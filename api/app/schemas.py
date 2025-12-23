@@ -13,6 +13,7 @@ class SubmitRankingRequest(BaseModel):
     franchise: str
     subgroup_name: str
     ranking_list: str
+    missing_song_handling: str
 
 
 # Responses

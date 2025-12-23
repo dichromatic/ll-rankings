@@ -33,7 +33,7 @@ async def submit_ranking(request: SubmitRankingRequest, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Subgroup not found")
 
     # 2. Parse text for songs and conflicts
-    matched, conflicts = StrictSongMatcher.parse_ranking_text(
+    matched, conflicts, missing = StrictSongMatcher.parse_ranking_text(
         request.ranking_list, request.franchise, db
     )
 
@@ -59,7 +59,17 @@ async def submit_ranking(request: SubmitRankingRequest, db: Session = Depends(ge
             conflicts=conflicts,
         )
 
-    # 5. Handle Success
+    # 5. Handle missing songs
+    if missing:
+        match request.missing_song_handling:
+            case "end":
+                # TODO Append missing songs to end of rankings.
+                raise HTTPException(status_code=501, detail="Append to end not implemented")
+            case "retry":
+                # TODO Send back missing songs and let the user enter the missing song ranks.
+                raise HTTPException(status_code=501, detail="Retry ranking not implemented")
+
+    # 6. Handle Success
     # Transform simple ranks to mean ranks for statistical accuracy
     final_ranks = TieHandlingService.convert_tied_ranks(matched)
 

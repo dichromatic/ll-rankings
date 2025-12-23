@@ -2,7 +2,7 @@
 
 import difflib
 import re
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Set
 
 from sqlalchemy.orm import Session
 
@@ -30,7 +30,7 @@ class StrictSongMatcher:
     @staticmethod
     def parse_ranking_text(
         text: str, franchise: str, db: Session
-    ) -> Tuple[Dict[str, float], Dict[str, dict]]:
+    ) -> Tuple[Dict[str, float], Dict[str, dict], Set[str]]:
         # Load franchise and associated songs
         franchise_obj = db.query(Franchise).filter_by(name=franchise).first()
         songs = db.query(Song).filter_by(franchise_id=franchise_obj.id).all()
@@ -40,6 +40,7 @@ class StrictSongMatcher:
 
         matched: Dict[str, float] = {}
         conflicts: Dict[str, dict] = {}
+        missing = { str(s.id) for s in songs }
         seen_song_ids = set()
 
         lines = [l.strip() for l in text.strip().split("\n") if l.strip()]
@@ -89,5 +90,6 @@ class StrictSongMatcher:
             # Success
             matched[str(song.id)] = float(rank_str)
             seen_song_ids.add(str(song.id))
+            missing.remove(str(song.id))
 
-        return matched, conflicts
+        return matched, conflicts, missing
