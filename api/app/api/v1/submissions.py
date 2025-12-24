@@ -10,6 +10,7 @@ from app.models import Franchise, Subgroup, Submission, SubmissionStatus
 from app.schemas import SubmissionResponse, SubmitRankingRequest, DeleteSubmissionsResponse
 from app.services.matching import StrictSongMatcher
 from app.services.tie_handling import TieHandlingService
+from app.services.missing_handling import MissingSongHandler
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["submissions"])
@@ -63,8 +64,7 @@ async def submit_ranking(request: SubmitRankingRequest, db: Session = Depends(ge
     if missing:
         match request.missing_song_handling:
             case "end":
-                # TODO Append missing songs to end of rankings.
-                raise HTTPException(status_code=501, detail="Append to end not implemented")
+                matched = MissingSongHandler.append_to_end(matched, missing)
             case "retry":
                 # TODO Send back missing songs and let the user enter the missing song ranks.
                 raise HTTPException(status_code=501, detail="Retry ranking not implemented")
