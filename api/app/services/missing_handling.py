@@ -16,7 +16,7 @@ class MissingSongHandler:
         for rank in ranked.values():
             # Need to consider gaps produced by ties
             if rank == prev:
-                ties[rank] = ties[rank] + 1
+                ties[rank] += 1
                 continue
 
             # Gap detected and it's not due to a tie
@@ -40,4 +40,47 @@ class MissingSongHandler:
         for song in missing:
             ranked[song] = new_rank
 
-        return ranked;
+        return ranked
+
+    @staticmethod
+    def rerank(ranked: Dict[str, float], missing: Dict[str, float]) -> Dict[str, float]:
+        displacing = {}
+        new_ranked = ranked.copy()
+        initial_inserts = {}
+
+        # Insert songs which won't displace existing songs in rank
+        for song, rank in missing.items():
+            if rank in ranked.values():
+                displacing[song] = rank
+            else:
+                new_ranked[song] = rank
+                if rank in initial_inserts:
+                    initial_inserts[rank] += 1
+                else:
+                    initial_inserts[rank] = 1
+
+        ranked = {song: new_ranked[song] for song in sorted(new_ranked, key=new_ranked.get)}
+
+        # Insert songs which will displace existing songs
+        offset = 0
+        new_ranked = {}
+        for song, rank in ranked.items():
+            displace_by = list(displacing.values()).count(rank)
+            if displace_by > 0:
+                offset += displace_by
+                is_same_rank = lambda k : displacing[k] == rank
+                for new_song in filter(is_same_rank,displacing.keys()):
+                    new_ranked[new_song] = rank
+
+            # We don't want pre-inserted songs to be displaced by an earlier displacement in this loop
+            if rank in initial_inserts:
+                new_ranked[song] = rank
+                continue
+            # Instead the existing songs get moved past the pre-inserted songs
+            else:
+                while rank + offset in initial_inserts:
+                    offset += initial_inserts[rank + offset]
+
+            new_ranked[song] = rank + offset
+
+        return new_ranked

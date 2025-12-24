@@ -8,7 +8,7 @@
         :root {
             /* Dimmed Gray Palette */
             --bg: #22272e; --card: #2d333b; --border: #444c56;
-            --pink: #f852ad; --green: #57ab5a; --red: #f85149;
+            --pink: #f852ad; --green: #57ab5a; --red: #f85149; --yellow: #ffff00;
             --text: #adbac7; --muted: #768390;
             --font-size-base: 22px;
         }
@@ -214,7 +214,7 @@
             <label>2. Missing Songs</label>
             <select id="missing-songs" class="modal-select">
                 <option value="ignore">Ignore them</option>
-                <option value="end">Append to end of list</option>
+                <option value="end">Add to end (or suitable gap)</option>
                 <option value="retry">Retry with new rankings</option>
             </select>
         </div>
@@ -243,8 +243,7 @@
 </footer>
 
 <script>
-    //const API = "/api/v1"; TODO Restore this before merge.
-    const API = "http://localhost:8000/api/v1";
+    const API = "/api/v1";
     let activeTab = 'leader', allSubgroups = []; 
 
     async function init() { await fetchMasterSubgroups(); syncData(); }
@@ -388,6 +387,15 @@
                     toggleSubmission(false);
                     btn.disabled = false;
                 }, 1500);
+            } else if (d.status === "INCOMPLETE") {
+                const listIn = document.getElementById('in-list');
+                listIn.value = "";
+                for (let i = 0; i < d.missing_songs.length; i++) {
+                    listIn.value += d.missing_songs[i];
+                    if(i < d.missing_songs.length - 1) listIn.value += '\n';
+                }
+                log.innerHTML = `<span style="color:var(--yellow)">MISSING SONGS, CHECK RANKED LIST, ADD RANKS AND ARTISTS, THEN RE-SUBMIT.</span>`;
+                btn.disabled = false;
             } else {
                 let firstErr = Object.values(d.conflicts)[0];
                 log.innerHTML = `<span style="color:var(--red)">VALIDATION ERROR: Line ${firstErr.line_num} (${firstErr.reason})</span>`;

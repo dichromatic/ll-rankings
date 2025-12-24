@@ -31,6 +31,7 @@ class SubmissionResponse(BaseModel):
     parsed_count: int
     # Now uses the structured ConflictDetail
     conflicts: Optional[Dict[str, ConflictDetail]] = None
+    missing_songs: Optional[list[str]] = None
 
 
 class SongResponse(BaseModel):

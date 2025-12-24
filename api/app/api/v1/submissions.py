@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Franchise, Subgroup, Submission, SubmissionStatus
+from app.models import Franchise, Subgroup, Submission, SubmissionStatus, Song
 from app.schemas import SubmissionResponse, SubmitRankingRequest, DeleteSubmissionsResponse
 from app.services.matching import StrictSongMatcher
 from app.services.tie_handling import TieHandlingService
@@ -38,20 +38,28 @@ async def submit_ranking(request: SubmitRankingRequest, db: Session = Depends(ge
         request.ranking_list, request.franchise, db
     )
 
-    # 3. Create record
-    submission = Submission(
+    # 3. Get existing record or create new record
+    submission = db.query(Submission).filter_by(
         username=request.username,
         franchise_id=franchise.id,
         subgroup_id=subgroup.id,
-        raw_ranking_text=request.ranking_list,
-    )
+        submission_status=SubmissionStatus.INCOMPLETE
+    ).first()
+    if not submission:
+        submission = Submission(
+            username=request.username,
+            franchise_id=franchise.id,
+            subgroup_id=subgroup.id,
+            raw_ranking_text=request.ranking_list,
+        )
 
     # 4. Handle Failure (Conflicts)
     if conflicts:
-        submission.submission_status = SubmissionStatus.CONFLICTED
-        submission.conflict_report = conflicts
-        db.add(submission)
-        db.commit()
+        if submission.submission_status != SubmissionStatus.INCOMPLETE:
+            submission.submission_status = SubmissionStatus.CONFLICTED
+            submission.conflict_report = conflicts
+            db.add(submission)
+            db.commit()
 
         return SubmissionResponse(
             submission_id=submission.id,
@@ -60,16 +68,31 @@ async def submit_ranking(request: SubmitRankingRequest, db: Session = Depends(ge
             conflicts=conflicts,
         )
 
-    # 5. Handle missing songs
-    if missing:
+    # 5. Add new songs to existing incomplete rankings
+    if submission.submission_status == SubmissionStatus.INCOMPLETE:
+        submission.raw_ranking_text += "\n" + request.ranking_list
+        matched = MissingSongHandler.rerank(submission.parsed_rankings, matched)
+        remove_existing = lambda s: s not in matched
+        missing = set(filter(remove_existing,missing))
+
+    # 6. Handle missing songs
+    if len(missing) > 0:
         match request.missing_song_handling:
             case "end":
                 matched = MissingSongHandler.append_to_end(matched, missing)
             case "retry":
-                # TODO Send back missing songs and let the user enter the missing song ranks.
-                raise HTTPException(status_code=501, detail="Retry ranking not implemented")
+                submission.submission_status = SubmissionStatus.INCOMPLETE
+                submission.parsed_rankings = matched
+                db.add(submission)
+                db.commit()
+                return SubmissionResponse(
+                    submission_id=submission.id,
+                    status="INCOMPLETE",
+                    parsed_count=len(matched),
+                    missing_songs = [db.query(Song).get(song).name for song in missing]
+                )
 
-    # 6. Handle Success
+    # 7. Handle Success
     # Transform simple ranks to mean ranks for statistical accuracy
     final_ranks = TieHandlingService.convert_tied_ranks(matched)
 
@@ -81,7 +104,7 @@ async def submit_ranking(request: SubmitRankingRequest, db: Session = Depends(ge
     return SubmissionResponse(
         submission_id=submission.id,
         status="VALID",
-        parsed_count=len(final_ranks),
+        parsed_count=len(final_ranks)
     )
 
 @router.delete("/submissions/{username}", response_model=DeleteSubmissionsResponse)

@@ -41,7 +41,6 @@ class StrictSongMatcher:
         matched: Dict[str, float] = {}
         conflicts: Dict[str, dict] = {}
         missing = { str(s.id) for s in songs }
-        seen_song_ids = set()
 
         lines = [l.strip() for l in text.strip().split("\n") if l.strip()]
 
@@ -79,7 +78,7 @@ class StrictSongMatcher:
                 continue
 
             # Error 3: Duplicate in the current list
-            if str(song.id) in seen_song_ids:
+            if str(song.id) not in missing:
                 conflicts[f"{song_name_clean}_dup_{idx}"] = {
                     "reason": "duplicate_song",
                     "line_num": idx,
@@ -89,7 +88,7 @@ class StrictSongMatcher:
 
             # Success
             matched[str(song.id)] = float(rank_str)
-            seen_song_ids.add(str(song.id))
             missing.remove(str(song.id))
 
+        matched = {song: matched[song] for song in sorted(matched, key=matched.get)}
         return matched, conflicts, missing
