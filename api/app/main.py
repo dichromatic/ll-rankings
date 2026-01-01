@@ -2,9 +2,11 @@
 
 from contextlib import asynccontextmanager
 import logging
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
@@ -151,14 +153,31 @@ app.include_router(submissions.router)
 app.include_router(analysis.router)
 app.include_router(users.router)
 
-# Static Files (Frontend)
-from fastapi.staticfiles import StaticFiles
-import os
 
-# Get path to root directory (one level up from /api)
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# Static files - serve frontend from parent directory
+# The api folder is inside the project root, so we go up one level
+FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent
 
-app.mount("/", StaticFiles(directory=root_dir, html=True), name="static")
+# Mount /data to serve song-info.json and other data files
+app.mount("/data", StaticFiles(directory=FRONTEND_DIR / "data"), name="data")
+
+# Serve static JS/CSS files
+@app.get("/app.js")
+async def serve_app_js():
+    return FileResponse(FRONTEND_DIR / "app.js", media_type="application/javascript")
+
+@app.get("/dash_utils.js")
+async def serve_dash_utils_js():
+    return FileResponse(FRONTEND_DIR / "dash_utils.js", media_type="application/javascript")
+
+@app.get("/users.html")
+async def serve_users_html():
+    return FileResponse(FRONTEND_DIR / "users.html", media_type="text/html")
+
+# Root route - serve index.html
+@app.get("/")
+async def serve_index():
+    return FileResponse(FRONTEND_DIR / "index.html", media_type="text/html")
 
 if __name__ == "__main__":
     import uvicorn

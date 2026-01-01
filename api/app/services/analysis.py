@@ -219,19 +219,30 @@ class AnalysisService:
         user_extreme_picks = defaultdict(list)
         all_usernames = set()
 
+        # Fetch ALL valid submissions for this franchise ONCE (not per subgroup)
+        submissions = (
+            db.query(Submission)
+            .filter(
+                Submission.franchise_id == to_uuid(franchise_id),
+                Submission.submission_status == SubmissionStatus.VALID
+            ).all()
+        )
+        
+        # Collect all song IDs across all subgroups for batch song name lookup
+        all_song_ids = set()
+        for sg in subgroups:
+            if sg.song_ids and isinstance(sg.song_ids, list):
+                all_song_ids.update(sg.song_ids)
+        
+        # Batch fetch ALL song names in one query
+        songs = db.query(Song).filter(Song.id.in_([UUID(sid) for sid in all_song_ids])).all() if all_song_ids else []
+        song_name_map = {str(s.id): s.name for s in songs}
+
         for sg in subgroups:
             if not sg.song_ids or not isinstance(sg.song_ids, list):
                 continue
             
             song_count = len(sg.song_ids)
-            # Fetch all franchise data to determine if this user has songs for this group
-            submissions = (
-                db.query(Submission)
-                .filter(
-                    Submission.franchise_id == to_uuid(franchise_id),
-                    Submission.submission_status == SubmissionStatus.VALID
-                ).all()
-            )
 
             user_rel_map = {}
             for sub in submissions:
@@ -246,10 +257,6 @@ class AnalysisService:
                 o_ranks = [rks[sid] for uname, rks in user_rel_map.items() if sid in rks]
                 if o_ranks:
                     sg_song_averages[sid] = statistics.mean(o_ranks)
-
-            # Batch fetch song names for this subgroup
-            songs = db.query(Song).filter(Song.id.in_([UUID(sid) for sid in sg.song_ids])).all()
-            song_name_map = {str(s.id): s.name for s in songs}
 
             for target_user, target_ranks in user_rel_map.items():
                 sq_diffs = []

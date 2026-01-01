@@ -3,8 +3,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Franchise, Submission, Song, SubmissionStatus
+from app.models import Franchise, Submission, Song, Subgroup, SubmissionStatus
+from app.services.ranking_utils import RelativeRankingService
 from typing import List, Dict
+from uuid import UUID
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
 
@@ -18,6 +20,22 @@ async def get_user_rankings(franchise: str, subgroup: str, db: Session = Depends
     if not franchise_obj:
         raise HTTPException(status_code=404, detail="Franchise not found")
     
+    # Look up subgroup to get the list of song IDs to filter by
+    subgroup_obj = db.query(Subgroup).filter(
+        Subgroup.name == subgroup,
+        Subgroup.franchise_id == franchise_obj.id
+    ).first()
+    
+    if not subgroup_obj or not subgroup_obj.song_ids:
+        return {
+            "franchise": franchise,
+            "subgroup": subgroup,
+            "total_users": 0,
+            "users": []
+        }
+    
+    subgroup_song_ids = subgroup_obj.song_ids
+    
     # Get all valid submissions for this franchise
     submissions = (
         db.query(Submission)
@@ -28,32 +46,32 @@ async def get_user_rankings(franchise: str, subgroup: str, db: Session = Depends
         .all()
     )
     
-    # Get song ID to name mapping
-    all_song_ids = set()
-    for sub in submissions:
-        if sub.parsed_rankings:
-            all_song_ids.update(sub.parsed_rankings.keys())
-    
-    from uuid import UUID
-    if all_song_ids:
-        songs = db.query(Song).filter(Song.id.in_([UUID(sid) for sid in all_song_ids])).all()
-        song_name_map = {str(s.id): s.name for s in songs}
-    else:
-        song_name_map = {}
+    # Get song ID to name mapping for subgroup songs only
+    songs = db.query(Song).filter(Song.id.in_([UUID(sid) for sid in subgroup_song_ids])).all()
+    song_name_map = {str(s.id): s.name for s in songs}
     
     # Build response
     result = []
     for sub in submissions:
         if not sub.parsed_rankings:
             continue
+        
+        # Use RelativeRankingService to get rankings relative to this subgroup
+        rel_map = RelativeRankingService.relativize(
+            sub.parsed_rankings, 
+            subgroup_song_ids
+        )
+        
+        if not rel_map:
+            continue
             
-        # Convert to song names and rankings
+        # Convert to song names and rankings, sorted by relative rank
         rankings = []
-        for song_id, rank in sorted(sub.parsed_rankings.items(), key=lambda x: x[1]):
+        for song_id, rank in sorted(rel_map.items(), key=lambda x: x[1]):
             song_name = song_name_map.get(song_id, "Unknown")
             rankings.append({
                 "song_name": song_name,
-                "rank": rank
+                "rank": round(rank)
             })
         
         result.append({
