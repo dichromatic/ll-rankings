@@ -1652,7 +1652,7 @@ function changeTierMethod(method) {
     }
 }
 
-async function renderAffinity(subData) {
+async function renderAffinity_OLD(subData) {
     const wrapAff = document.getElementById('c-affinity');
     const wrapUnq = document.getElementById('c-unique-favs');
 

@@ -1,10 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Master Rankings Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
     <style>
         :root {
             /* Premium Dark Theme */
@@ -765,10 +767,11 @@
             <div class="nav-item" id="btn-leader" onclick="tab('leader')">Rankings</div>
             <div class="nav-item" id="btn-tiers" onclick="tab('tiers')">Tiers</div>
             <div class="nav-item" id="btn-aff" onclick="tab('aff')">Affinity</div>
+            <div class="nav-item" id="btn-subranks" onclick="tab('subranks')">Subunits</div>
             <div class="nav-item" id="btn-more" onclick="tab('more')">Analysis</div>
             <div class="nav-item" id="btn-opps" onclick="tab('opps')">Divergence</div>
             <div class="nav-item" id="btn-constellation" onclick="tab('constellation')">Constellation</div>
-            <div class="nav-item" id="btn-oshi" onclick="tab('oshi')" style="display:none">Oshi Detector</div>
+            <div class="nav-item" id="btn-oshi" onclick="tab('oshi')">Oshi Detector</div>
             <div class="nav-item" id="btn-spice" onclick="tab('spice')">Spice</div>
             <div class="nav-item" id="btn-users" onclick="tab('users')">Users</div>
         </div>
@@ -851,6 +854,28 @@
         </div>
         </div>
 
+        <!-- VIEW: SUBUNIT RANKINGS -->
+        <div id="view-subranks" class="hidden">
+            <div class="card">
+                <h3>🏆 Subunit Leaderboard</h3>
+                <div class="table-container">
+                    <table id="t-subranks">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">Rank</th>
+                                <th style="width:100px;">Type</th>
+                                <th>Subgroup Name</th>
+                                <th style="text-align:right;">Songs</th>
+                                <th style="text-align:right;">Avg Global Rank</th>
+                                <th style="text-align:right;">Top Song</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-subranks"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- ANALYSIS VIEW -->
         <div id="view-more" class="hidden"
             style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px; align-items:start;">
@@ -906,11 +931,23 @@
         <div id="view-tiers" class="grid hidden">
             <div class="card" style="grid-column: 1 / -1;">
                 <h3>Tier Distribution</h3>
+                <p style="font-size:12px; color:var(--muted); margin-top:-10px; margin-bottom:15px;">Songs categorized
+                    by percentile ranking. Hover over dots to see song names, hover over song names to highlight dots.
+                </p>
+                <!-- Horizontal bar showing tier distribution -->
                 <div id="c-tier-bar"
                     style="height:40px; border-radius:8px; overflow:hidden; display:flex; margin-bottom:20px;"></div>
-                <div id="c-tier-lists" class="grid"
-                    style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin-top:20px;">
+                <!-- Dot chart canvas -->
+                <div
+                    style="position:relative; height:150px; margin-bottom:20px; background:var(--bg); border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+                    <canvas id="c-tier-dots" style="width:100%; height:100%;"></canvas>
+                    <div id="c-tier-tooltip"
+                        style="position:absolute; display:none; background:var(--card); border:1px solid var(--border); border-radius:6px; padding:8px 12px; font-size:11px; pointer-events:none; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                    </div>
                 </div>
+                <!-- Song lists per tier -->
+                <div id="c-tier-lists" class="grid"
+                    style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:15px;"></div>
             </div>
         </div>
 
@@ -1106,14 +1143,11 @@
                 btn.style.background = 'var(--pink)';
                 btn.style.color = '#000';
                 btn.style.borderColor = 'var(--pink)';
-                document.getElementById('btn-oshi').style.display = 'block';
             } else {
                 btn.innerHTML = 'Basic Mode';
                 btn.style.background = 'transparent';
                 btn.style.color = 'var(--muted)';
                 btn.style.borderColor = 'var(--border)';
-                document.getElementById('btn-oshi').style.display = 'none';
-                if (activeTab === 'oshi') tab('dash');
             }
             // Re-render current tab with new limits
             if (dataCache.loaded) {
@@ -1141,7 +1175,47 @@
         function updateSubgroupDropdown() {
             const f = document.getElementById('view-franchise').value, sel = document.getElementById("view-subgroup");
             const filtered = allSubgroups.filter(sg => sg.franchise === f);
-            sel.innerHTML = filtered.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
+
+            // Categorize
+            const groups = {
+                "Main": [],
+                "Subunits": [],
+                "Solos": [],
+                "Other": []
+            };
+
+            filtered.forEach(s => {
+                if (s.name === "All Songs" || s.name === "Group Songs" || s.name === "Singles") {
+                    groups["Main"].push(s);
+                } else if (s.name.includes("Solos")) {
+                    groups["Solos"].push(s);
+                } else if (s.is_subunit) {
+                    groups["Subunits"].push(s);
+                } else {
+                    groups["Other"].push(s);
+                }
+            });
+
+            // Sort within groups
+            Object.values(groups).forEach(g => g.sort((a, b) => a.name.localeCompare(b.name)));
+            // Ensure All Songs is first in Main
+            groups["Main"].sort((a, b) => (a.name === "All Songs" ? -1 : b.name === "All Songs" ? 1 : 0));
+
+            let html = "";
+            const cats = ["Main", "Subunits", "Solos", "Other"];
+
+            cats.forEach(c => {
+                if (groups[c].length > 0) {
+                    const label = c === "Main" ? "General" : c; // Renaming Main to General for display
+                    html += `<optgroup label="${label}">`;
+                    html += groups[c].map(s => `<option value="${s.name}">${s.name} (${s.song_count})</option>`).join("");
+                    html += `</optgroup>`;
+                }
+            });
+
+            sel.innerHTML = html;
+
+            // Auto-select All Songs or first available
             if (filtered.some(s => s.name === "All Songs")) sel.value = "All Songs";
             else if (filtered.length > 0) sel.selectedIndex = 0;
         }
@@ -1160,11 +1234,14 @@
         }
 
         function wipeUI() {
-            const ids = ['c-leaderboard', 'c-universal', 'c-disputed', 'c-subunits', 'c-controversy', 'c-sleeper', 'c-consistent', 'c-outliers', 'c-matrix', 'c-spice', 'c-dash-top5', 'c-dash-bottom5', 'duel-disputes', 'match-results'];
+            const ids = ['c-leaderboard', 'c-universal', 'c-disputed', 'c-subunits', 'c-controversy', 'c-sleeper', 'c-consistent', 'c-outliers', 'c-matrix', 'c-spice', 'c-dash-top5', 'c-dash-bottom5', 'duel-disputes', 'match-results', 'users-content'];
             ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = "Refreshing..."; });
             ['d-top-song', 'd-cont-song', 'd-spice-user', 'd-sleep-song', 'd-agreed-song', 'd-total-songs'].forEach(id => document.getElementById(id).innerHTML = "...");
             const dr = document.getElementById('duel-results');
             if (dr) dr.classList.add('hidden');
+            // Also clear users stats
+            const us = document.getElementById('users-stats-container');
+            if (us) us.innerHTML = '';
         }
 
         function tab(name) {
@@ -1228,7 +1305,7 @@
 
             // Render tabs that don't depend on specific subgroup rankings first
             if (activeTab === 'spice' || activeTab === 'dash') fetchSpiceData();
-            if (activeTab === 'oshi') fetchUserList();
+            if (activeTab === 'oshi') { fetchUserList(); fetchBiasUserList(true); }
             if (activeTab === 'users') loadUsers();
 
             if (!ranks || !ranks.rankings) {
@@ -1253,8 +1330,9 @@
                 renderHaters(takes?.takes || []);
             }
             if (activeTab === 'opps') renderMatrix(sub, f);
-            if (activeTab === 'tiers') renderTierStats(ranks.rankings);
+            if (activeTab === 'tiers') renderTierStats(ranks.rankings, cont?.results || []);
             if (activeTab === 'aff') renderAffinity(ranks.rankings);
+            if (activeTab === 'subranks') renderSubranks();
 
             // Render dashboard constellation when on dashboard tab
             if (activeTab === 'dash') {
@@ -1284,6 +1362,7 @@
             }
             if (activeTab === 'opps') renderMatrix(sub, f);
             if (activeTab === 'opps') renderMatrix(sub, f);
+            if (activeTab === 'subranks') renderSubranks();
             if (activeTab === 'spice' || activeTab === 'dash') fetchSpiceData();
             if (activeTab === 'constellation' || activeTab === 'oshi') fetchUserList();
         }
@@ -1419,6 +1498,9 @@
                 const range = (maxRank - minRank) || 1;
 
                 // Create number line visualization
+                const margin = 12; // Half dot width + padding
+                const widthCalc = `(100% - ${margin * 2}px)`;
+
                 content.innerHTML = `
                     <div style="margin-bottom:25px; text-align:center;">
                         <div style="display:inline-flex; gap:40px; font-size:15px;">
@@ -1429,22 +1511,22 @@
                     </div>
                     
                     <div style="position:relative; height:120px; border-radius:12px; margin:30px 0; border:1px solid var(--border); background:#0d1117; overflow:hidden;">
-                        <!-- Selection Area Coloration (Constrained to Data Range) -->
-                         <div style="position:absolute; top:0; bottom:0; left:25px; right:25px; background:linear-gradient(90deg, rgba(63,185,80,0.1) 0%, rgba(219,97,162,0.1) 50%, rgba(248,81,73,0.1) 100%); border-left:1px solid rgba(255,255,255,0.1); border-right:1px solid rgba(255,255,255,0.1);"></div>
+                        <!-- Selection Area Coloration (Full Width) -->
+                         <div style="position:absolute; top:0; bottom:0; left:0; right:0; background:linear-gradient(90deg, rgba(63,185,80,0.1) 0%, rgba(219,97,162,0.1) 50%, rgba(248,81,73,0.1) 100%);"></div>
 
-                        <!-- Main line (Visual Only, centered in the data range) -->
-                        <div style="position:absolute; top:65px; left:25px; right:25px; height:2px; background:rgba(255,255,255,0.1);"></div>
+                        <!-- Main line -->
+                        <div style="position:absolute; top:65px; left:${margin}px; right:${margin}px; height:2px; background:rgba(255,255,255,0.1);"></div>
                         
                         <!-- Mean marker -->
-                        <div style="position:absolute; top:35px; left:calc(25px + ${(mean - minRank) / range} * (100% - 50px)); transform:translateX(-50%); text-align:center; z-index:5;">
+                        <div style="position:absolute; top:35px; left:calc(${margin}px + ${(mean - minRank) / range} * ${widthCalc}); transform:translateX(-50%); text-align:center; z-index:5;">
                             <div style="font-size:9px; color:var(--pink); font-weight:900; letter-spacing:1px; margin-bottom:2px;">AVG</div>
                             <div style="width:2px; height:50px; background:var(--pink); margin:0 auto; box-shadow:0 0 10px var(--pink);"></div>
                         </div>
 
                         <!-- Std dev range box -->
                         <div style="position:absolute; top:60px; height:10px; background:rgba(219,97,162,0.25); border:1px border var(--pink); border-radius:4px; 
-                            left:calc(25px + ${Math.max(0, (mean - std - minRank) / range)} * (100% - 50px)); 
-                            width:calc(${(2 * std) / range} * (100% - 50px)); z-index:2;"></div>
+                            left:calc(${margin}px + ${Math.max(0, (mean - std - minRank) / range)} * ${widthCalc}); 
+                            width:calc(${(2 * std) / range} * ${widthCalc}); z-index:2;"></div>
 
                         <!-- User dots -->
                         ${users.map((user, i) => {
@@ -1452,14 +1534,14 @@
                     const pct = (rank - minRank) / range;
                     const color = rank < (mean - 2) ? 'var(--green)' : rank > (mean + 2) ? 'var(--red)' : 'var(--pink)';
                     return `<div title="${user}: #${rank}" 
-                                style="position:absolute; top:58px; left:calc(25px + ${pct} * (100% - 50px)); transform:translateX(-50%); 
+                                style="position:absolute; top:58px; left:calc(${margin}px + ${pct} * ${widthCalc}); transform:translateX(-50%); 
                                 width:16px; height:16px; background:${color}; border-radius:50%; border:2px solid #fff; cursor:pointer; z-index:${10 + i}; transition:all 0.2s;"
                                 onmouseover="this.style.transform='translateX(-50%) scale(1.4)'; this.style.zIndex='100';"
                                 onmouseout="this.style.transform='translateX(-50%) scale(1)'; this.style.zIndex='${10 + i}';"
                                 onclick="event.stopPropagation(); showUserComparison('${user}', '${user}')"></div>`;
                 }).join('')}
                     </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:-10px; padding:0 25px;">
+                    <div style="display:flex; justify-content:space-between; margin-top:-10px; padding:0 ${margin}px;">
                          <div style="font-size:10px; color:var(--green); font-weight:800; text-transform:uppercase;">← High Rank (Love)</div>
                          <div style="font-size:10px; color:var(--red); font-weight:800; text-transform:uppercase;">Low Rank (Hate) →</div>
                     </div>
@@ -1653,7 +1735,7 @@
                 const c = controversy.find(x => x.song_name === songName);
                 return c ? Math.max(0, 100 - ((c.cv * c.avg_rank) * 2.5)).toFixed(1) : "0.0";
             };
-            const rows = [...top, ...btm].map((s, i) => `< tr onclick = "showSongDistribution('${s.song_name.replace(/'/g, "\\'")}') " style="cursor: pointer; " class="clickable - row"><td class="col - rank" style="color:${i < limit ? 'var(--green)' : 'var(--red)'} ">${i < limit ? 'TOP' : 'BTM'}</td><td>${s.song_name}</td><td class="col - metric" style="color: var(--pink)">${s.average}</td><td class="col - metric">${mapAgreement(s.song_name)}%</td></tr>`).join('');
+            const rows = [...top, ...btm].map((s, i) => `<tr onclick="showSongDistribution('${s.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td class="col-rank" style="color:${i < limit ? 'var(--green)' : 'var(--red)'};">${i < limit ? 'TOP' : 'BTM'}</td><td>${s.song_name}</td><td class="col-metric" style="color:var(--pink);">${s.average}</td><td class="col-metric">${mapAgreement(s.song_name)}%</td></tr>`).join('');
             document.getElementById('c-universal').innerHTML = `<table><colgroup><col class="col-rank"><col><col class="col-metric"><col class="col-metric"></colgroup><thead><tr><th>Type</th><th>Song</th><th>Avg</th><th>Agr</th></tr></thead>${rows}</table>` +
                 (!window.advancedMode && ranks.length > limit * 2 ? `<div style="padding:10px; text-align:center; font-size:11px; color:var(--muted); background:rgba(0,0,0,0.2); border-top:1px solid rgba(255,255,255,0.05);">Showing top/bottom ${limit} of ${ranks.length} songs. Enable Advanced Mode for full list.</div>` : '');
         }
@@ -1664,7 +1746,7 @@
             takes.forEach(t => { if (!songGroups[t.song_name]) songGroups[t.song_name] = []; songGroups[t.song_name].push(t); });
             const res = Object.keys(songGroups).map(name => {
                 const g = songGroups[name].sort((a, b) => a.user_rank - b.user_rank);
-                return { name, fight: `${g[0].username} vs ${g[g.length - 1].username}`, diff: Math.abs(g[g.length - 1].user_rank - g[0].user_rank) };
+                return { name, fight: `${g[0].username} (#${g[0].user_rank}) vs ${g[g.length - 1].username} (#${g[g.length - 1].user_rank})`, diff: Math.abs(g[g.length - 1].user_rank - g[0].user_rank) };
             }).sort((a, b) => b.diff - a.diff);
 
             const displayRes = res.slice(0, limit);
@@ -1777,7 +1859,7 @@
         function renderSleepers(takes) {
             const limit = getLimit(10, 50);
             const sleepers = takes.filter(t => t.score < -15).slice(0, limit);
-            document.getElementById('c-sleeper').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"></colgroup><tr><th>Song</th><th class="col-metric">Lover</th><th class="col-metric">Gap</th></tr>` + sleepers.map(t => `<tr onclick="showSongDistribution('${t.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td>${t.song_name}</td><td class="col-metric">${t.username.substring(0, 8)}</td><td class="col-metric" style="color:var(--green)">${Math.abs(t.delta).toFixed(1)}</td></tr>`).join('') + `</table>`;
+            document.getElementById('c-sleeper').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"></colgroup><tr><th>Song</th><th class="col-metric">Lover</th><th class="col-metric">Gap</th></tr>` + sleepers.map(t => `<tr onclick="showSongDistribution('${t.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td>${t.song_name}</td><td class="col-metric">${t.username.substring(0, 8)} <span style="font-size:9px; opacity:0.7">#${t.user_rank}</span></td><td class="col-metric" style="color:var(--green)">${Math.abs(t.delta).toFixed(1)}</td></tr>`).join('') + `</table>`;
         }
         function renderHaters(takes) {
             const limit = getLimit(10, 50);
@@ -1786,7 +1868,7 @@
 
             document.getElementById('c-haters').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"></colgroup>` +
                 `<thead><tr><th style="padding-left:10px; text-align:left;">Song</th><th class="col-metric">Hater</th><th class="col-metric">Gap</th></tr></thead>` +
-                displayHaters.map(t => `<tr onclick="showSongDistribution('${t.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td style="padding:4px 10px;">${t.song_name}</td><td class="col-metric">${t.username.substring(0, 8)}</td><td class="col-metric" style="color:var(--red); font-weight:bold;">${Math.abs(t.delta).toFixed(1)}</td></tr>`).join('') +
+                displayHaters.map(t => `<tr onclick="showSongDistribution('${t.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td style="padding:4px 10px;">${t.song_name}</td><td class="col-metric">${t.username.substring(0, 8)} <span style="font-size:9px; opacity:0.7">#${t.user_rank}</span></td><td class="col-metric" style="color:var(--red); font-weight:bold;">${Math.abs(t.delta).toFixed(1)}</td></tr>`).join('') +
                 `</table>` +
                 (!window.advancedMode && allHaters.length > limit ? `<div style="padding:10px; text-align:center; font-size:11px; color:var(--muted); background:rgba(0,0,0,0.2); border-top:1px solid rgba(255,255,255,0.05);">Showing top ${limit} of ${allHaters.length} haters. Enable Advanced Mode for full list.</div>` : '');
         }
@@ -2232,29 +2314,149 @@
             } catch (e) { console.error(e); wrap.innerHTML = "Error."; }
         }
 
-        function renderTierStats(rankings) {
-            // Tiers: S (1-20), A (21-40), B (41-60), C (61-80), F (81+)
-            const tiers = { S: [], A: [], B: [], C: [], F: [] };
-            rankings.sort((a, b) => a.average - b.average);
+        // Store tier dots globally for hover interactions
+        let tierDotsData = [];
+        let tierRedrawConfig = { rects: [] };
+        let tierMethod = 'score'; // 'percentile', 'score', 'stddev'
 
-            rankings.forEach(r => {
-                if (r.average <= 20) tiers.S.push(r);
-                else if (r.average <= 40) tiers.A.push(r);
-                else if (r.average <= 60) tiers.B.push(r);
-                else if (r.average <= 80) tiers.C.push(r);
-                else tiers.F.push(r);
+        function renderTierStats(rankings, contData) {
+            const total = rankings.length;
+
+            // Get canvas and tooltip
+            const canvas = document.getElementById('c-tier-dots');
+            const tooltip = document.getElementById('c-tier-tooltip');
+
+            if (total === 0) {
+                document.getElementById('c-tier-bar').innerHTML = '<div style="padding:10px; color:var(--muted)">No data</div>';
+                document.getElementById('c-tier-lists').innerHTML = '';
+                if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+                return;
+            }
+
+            // Build controversy map for std
+            const contMap = {};
+            if (contData && contData.length) {
+                contData.forEach(c => contMap[c.song_name] = c.std || c.cv || 0);
+            }
+
+            const sorted = [...rankings].sort((a, b) => a.average - b.average);
+
+            // Calculate stats for stddev method
+            const avgRanks = sorted.map(s => s.average);
+            const mean = avgRanks.reduce((a, b) => a + b, 0) / total;
+            const stddev = Math.sqrt(avgRanks.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / total);
+            tierRedrawConfig.stats = { mean, stddev };
+
+            // Use selected method in all modes
+            const method = tierMethod;
+
+            let tiers, labels;
+
+            switch (method) {
+                case 'percentile':
+                    // Equal 20% splits (quintiles)
+                    const pct20 = Math.ceil(total * 0.2);
+                    const pct40 = Math.ceil(total * 0.4);
+                    const pct60 = Math.ceil(total * 0.6);
+                    const pct80 = Math.ceil(total * 0.8);
+                    tiers = {
+                        S: sorted.slice(0, pct20),
+                        A: sorted.slice(pct20, pct40),
+                        B: sorted.slice(pct40, pct60),
+                        C: sorted.slice(pct60, pct80),
+                        F: sorted.slice(pct80)
+                    };
+                    labels = { S: 'S (Top 20%)', A: 'A (20-40%)', B: 'B (40-60%)', C: 'C (60-80%)', F: 'F (Bottom 20%)' };
+                    break;
+
+                case 'stddev':
+                    // Standard Normal Distribution z-score bands
+                    tiers = { S: [], A: [], B: [], C: [], F: [] };
+                    sorted.forEach(r => {
+                        const z = (r.average - mean) / stddev;
+                        if (z <= -2) tiers.S.push(r);
+                        else if (z <= -1) tiers.A.push(r);
+                        else if (z <= 1) tiers.B.push(r);
+                        else if (z <= 2) tiers.C.push(r);
+                        else tiers.F.push(r);
+                    });
+                    labels = {
+                        S: 'S (z < -2σ, ~2%)',
+                        A: 'A (-2σ to -1σ, ~14%)',
+                        B: 'B (within ±1σ, ~68%)',
+                        C: 'C (+1σ to +2σ, ~14%)',
+                        F: 'F (z > +2σ, ~2%)'
+                    };
+                    break;
+
+                case 'score':
+                default:
+                    // Bell curve grading (Value-based to handle ties)
+                    // We determine thresholds based on ideal counts, but assign by score
+                    const s_idx = Math.min(Math.ceil(total * 0.07) - 1, total - 1);
+                    const a_idx = Math.min(Math.ceil(total * 0.24) - 1, total - 1);
+                    const b_idx = Math.min(Math.ceil(total * 0.74) - 1, total - 1);
+                    const c_idx = Math.min(Math.ceil(total * 0.91) - 1, total - 1);
+
+                    const score_s = sorted[s_idx].average;
+                    const score_a = sorted[a_idx].average;
+                    const score_b = sorted[b_idx].average;
+                    const score_c = sorted[c_idx].average;
+
+                    tiers = {
+                        S: sorted.filter(r => r.average <= score_s),
+                        A: sorted.filter(r => r.average > score_s && r.average <= score_a),
+                        B: sorted.filter(r => r.average > score_a && r.average <= score_b),
+                        C: sorted.filter(r => r.average > score_b && r.average <= score_c),
+                        F: sorted.filter(r => r.average > score_c)
+                    };
+                    labels = {
+                        S: 'S (Top 7%)',
+                        A: 'A (7-24%)',
+                        B: 'B (24-74%)',
+                        C: 'C (74-91%)',
+                        F: 'F (Bottom 9%)'
+                    };
+                    break;
+            }
+
+            // Assign tier metadata for dots
+            sorted.forEach((r, i) => {
+                r._tierRank = i + 1;
+                r._std = contMap[r.song_name] || 0;
+                // Find which tier this song is in
+                for (const [tier, songs] of Object.entries(tiers)) {
+                    if (songs.includes(r)) { r._tier = tier; break; }
+                }
             });
 
-            // Render Bar
-            const total = rankings.length;
-            const bar = document.getElementById('c-tier-bar');
-            bar.innerHTML = '';
-
-            if (total === 0) { bar.innerHTML = '<div style="padding:10px; color:var(--muted)">No data</div>'; return; }
-
             const colors = { S: '#e6cc00', A: '#3fb950', B: '#238636', C: '#8b949e', F: '#f85149' };
-            const labels = { S: 'S (Top 20)', A: 'A (21-40)', B: 'B (41-60)', C: 'C (61-80)', F: 'F (81+)' };
 
+            // Render method selector (always visible)
+            const methodSelectorHTML = `
+                <div style="margin-bottom:15px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                    <label style="font-size:12px; color:var(--muted); text-transform:uppercase; white-space:nowrap;">Tier Method:</label>
+                    <select id="tier-method-select" onchange="changeTierMethod(this.value)" style="padding:8px 12px; font-size:13px; min-width:200px;">
+                        <option value="score" ${tierMethod === 'score' ? 'selected' : ''}>Bell Curve</option>
+                        <option value="percentile" ${tierMethod === 'percentile' ? 'selected' : ''}>Equal Quintiles</option>
+                        <option value="stddev" ${tierMethod === 'stddev' ? 'selected' : ''}>Standard Deviation</option>
+                    </select>
+                    <span style="font-size:11px; color:var(--muted);">μ = ${mean.toFixed(1)}, σ = ${stddev.toFixed(1)}</span>
+                </div>
+            `;
+
+            // Render Bar
+            const bar = document.getElementById('c-tier-bar');
+            // Check if we need to insert the selector before the bar (if it doesn't exist yet)
+            let selectorContainer = document.getElementById('tier-method-container');
+            if (!selectorContainer) {
+                selectorContainer = document.createElement('div');
+                selectorContainer.id = 'tier-method-container';
+                bar.parentNode.insertBefore(selectorContainer, bar);
+            }
+            selectorContainer.innerHTML = methodSelectorHTML;
+
+            bar.innerHTML = '';
             Object.keys(tiers).forEach(k => {
                 const count = tiers[k].length;
                 if (count > 0) {
@@ -2263,98 +2465,872 @@
                 }
             });
 
+            // Render Dot Chart
+            if (canvas) {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                const ctx = canvas.getContext('2d');
+                const w = canvas.width, h = canvas.height;
+                const paddingLeft = 30;
+                const paddingRight = 50; // Extra for labels
+                const usableWidth = w - paddingLeft - paddingRight;
+
+                ctx.clearRect(0, 0, w, h);
+
+                // Fill background to prevent black edges
+                ctx.fillStyle = '#0d1117';
+                ctx.fillRect(0, 0, w, h);
+
+                const xStrategy = (method === 'stddev') ? 'z-score' : 'rank';
+
+                // Calculate and store background rects for efficient redraw
+                tierRedrawConfig.rects = [];
+                let bgRects = [];
+
+                if (xStrategy === 'z-score') {
+                    const zScores = sorted.map(r => (r.average - mean) / stddev);
+                    const minZ = Math.min(...zScores);
+                    const maxZ = Math.max(...zScores);
+                    const zRange = maxZ - minZ || 1;
+
+                    const getX = (z) => {
+                        // Clamp to min/max prevents values flying off chart
+                        const val = Math.max(minZ, Math.min(maxZ, z));
+                        const pct = (val - minZ) / zRange;
+                        return paddingLeft + pct * usableWidth;
+                    };
+
+                    const cuts = [-2, -1, 1, 2];
+                    const cutX = cuts.map(getX);
+                    // No need to define x0, xF here as map covers it
+
+                    const clampX = (x) => Math.max(0, Math.min(w, x));
+                    const kCutX = cutX.map(clampX);
+
+                    bgRects = [
+                        { t: 'S', x: 0, w: kCutX[0] }, // From 0 to -2 cut (which might be 0 if minZ > -2)
+                        { t: 'A', x: kCutX[0], w: Math.max(0, kCutX[1] - kCutX[0]) },
+                        { t: 'B', x: kCutX[1], w: Math.max(0, kCutX[2] - kCutX[1]) },
+                        { t: 'C', x: kCutX[2], w: Math.max(0, kCutX[3] - kCutX[2]) },
+                        { t: 'F', x: kCutX[3], w: w - kCutX[3] }
+                    ];
+
+                    tierRedrawConfig.getX = (r) => {
+                        const z = (r.average - mean) / stddev;
+                        return getX(z);
+                    };
+
+                } else {
+                    let xStart = 0;
+                    let cumCount = 0;
+                    const tierOrder = ['S', 'A', 'B', 'C', 'F'];
+
+                    tierOrder.forEach((k, idx) => {
+                        const count = tiers[k].length;
+                        if (count > 0) {
+                            cumCount += count;
+                            let xEnd;
+                            if (idx === tierOrder.length - 1 || cumCount === total) {
+                                xEnd = w;
+                            } else {
+                                xEnd = paddingLeft + (cumCount / total) * usableWidth;
+                            }
+                            bgRects.push({ t: k, x: Math.max(0, xStart), w: xEnd - Math.max(0, xStart) });
+                            xStart = xEnd;
+                        }
+                    });
+
+                    tierRedrawConfig.getX = (r, i) => {
+                        return paddingLeft + ((i + 0.5) / total) * usableWidth;
+                    };
+                }
+
+                tierRedrawConfig.rects = bgRects;
+
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = '#0d1117';
+                ctx.fillRect(0, 0, w, h);
+
+                bgRects.forEach(rect => {
+                    if (rect.w > 0) {
+                        let fillStyle = colors[rect.t] + '25';
+                        // FIX: If F tier is empty in StdDev, use C color to avoid alarming Red
+                        if (tierMethod === 'stddev' && rect.t === 'F' && (!tiers.F || tiers.F.length === 0)) {
+                            fillStyle = colors['C'] + '25';
+                        }
+                        ctx.fillStyle = fillStyle;
+                        ctx.fillRect(rect.x, 0, rect.w, h);
+                    }
+                });
+
+                // Draw Border Labels (Numbers)
+                ctx.fillStyle = '#666';
+                ctx.font = '10px Consolas, monospace';
+                ctx.textAlign = 'center';
+
+                // We draw labels at the boundaries of rects. 
+                // Skip the very last one (right edge) and first (left edge) usually, 
+                // but checking boundaries is safer.
+                bgRects.forEach((rect, i) => {
+                    if (i < bgRects.length - 1) {
+                        const boundaryX = rect.x + rect.w;
+
+                        // Determine label text based on method and tier
+                        let label = '';
+                        if (tierMethod === 'stddev') {
+                            // S|A (-2), A|B (-1), B|C (+1), C|F (+2)
+                            if (rect.t === 'S') label = '-2σ';
+                            if (rect.t === 'A') label = '-1σ';
+                            if (rect.t === 'B') label = '+1σ';
+                            if (rect.t === 'C') label = '+2σ';
+                        } else if (tierMethod === 'percentile') {
+                            // S|A (20%), A|B (40%), etc.
+                            if (rect.t === 'S') label = '20%';
+                            if (rect.t === 'A') label = '40%';
+                            if (rect.t === 'B') label = '60%';
+                            if (rect.t === 'C') label = '80%';
+                        } else if (tierMethod === 'score') {
+                            if (rect.t === 'S') label = '93%'; // approx
+                            // Score cuts are dynamic, maybe skip labels or use approx
+                        }
+
+                        if (label) {
+                            // Draw vertical line? Subtle one
+                            ctx.beginPath();
+                            ctx.moveTo(boundaryX, 0);
+                            ctx.lineTo(boundaryX, h);
+                            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                            ctx.stroke();
+
+                            // Draw Label
+                            ctx.fillText(label, boundaryX, 12);
+                        }
+                    }
+                });
+
+                tierDotsData = [];
+                const maxStd = Math.max(...sorted.map(r => r._std || 0), 1);
+                const paddingY = 20;
+
+                sorted.forEach((r, i) => {
+                    const x = tierRedrawConfig.getX(r, i);
+                    const std = r._std || 0;
+                    const y = h - paddingY - (std / maxStd) * (h - paddingY * 2);
+
+                    tierDotsData.push({ x, y, song: r.song_name, tier: r._tier, avg: r.average, std, rank: r._tierRank });
+
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = colors[r._tier];
+                    ctx.fill();
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                });
+
+                // Axis labels
+                ctx.fillStyle = '#8b949e';
+                ctx.font = '9px Inter';
+                ctx.textAlign = 'left';
+                ctx.fillText('← Best', paddingLeft, h - 5);
+                ctx.textAlign = 'right';
+                ctx.fillText('Worst →', w - paddingRight, h - 5);
+                ctx.textAlign = 'left';
+                ctx.fillText('High σ ↑', 5, 25);
+
+                // Mouse move for tooltip
+                canvas.onmousemove = (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const mx = e.clientX - rect.left;
+                    const my = e.clientY - rect.top;
+
+                    let found = null;
+                    for (const d of tierDotsData) {
+                        const dist = Math.sqrt((mx - d.x) ** 2 + (my - d.y) ** 2);
+                        if (dist < 8) { found = d; break; }
+                    }
+
+                    if (found) {
+                        tooltip.style.display = 'block';
+                        // Smart positioning - avoid right edge clipping
+                        const tooltipWidth = 200; // approximate
+                        let leftPos = found.x + 10;
+                        if (leftPos + tooltipWidth > w) {
+                            leftPos = found.x - tooltipWidth - 10;
+                        }
+                        tooltip.style.left = Math.max(0, leftPos) + 'px';
+                        tooltip.style.top = Math.max(0, found.y - 40) + 'px';
+
+                        // UPDATED TOOLTIP START: Show Avg or Z-Score based on method
+                        let valText = `Avg: ${found.avg.toFixed(2)}`;
+                        if (tierMethod === 'stddev') {
+                            const z = (found.avg - mean) / stddev;
+                            const sign = z > 0 ? '+' : '';
+                            valText = `Z-Score: ${sign}${z.toFixed(2)}σ`;
+                        }
+                        tooltip.innerHTML = `<strong style="color:${colors[found.tier]}">${found.song}</strong><br>${valText} | Controversy: ${found.std.toFixed(2)}σ`;
+                        // UPDATED TOOLTIP END
+
+                        highlightSongInList(found.song, true);
+                    } else {
+                        tooltip.style.display = 'none';
+                        highlightSongInList(null, false);
+                    }
+                };
+
+                // Click to open distribution
+                canvas.onclick = (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const mx = e.clientX - rect.left;
+                    const my = e.clientY - rect.top;
+
+                    let found = null;
+                    for (const d of tierDotsData) {
+                        const dist = Math.sqrt((mx - d.x) ** 2 + (my - d.y) ** 2);
+                        if (dist < 8) { found = d; break; }
+                    }
+                    if (found) {
+                        showSongDistribution(found.song);
+                    }
+                };
+
+                canvas.onmouseleave = () => {
+                    tooltip.style.display = 'none';
+                    highlightSongInList(null, false);
+                };
+            }
+
             // Render Lists
             const lists = document.getElementById('c-tier-lists');
             lists.innerHTML = '';
+
             Object.keys(tiers).forEach(k => {
+                const tierSongs = tiers[k];
+                // REVERT: Show all columns (User request: "show all columns")
+                // if (!tierSongs.length) return; 
+
+                // Add Expected count for StdDev
+                let headerExtra = `(${tierSongs.length})`;
+                if (tierMethod === 'stddev') {
+                    const pctMap = { S: 0.022, A: 0.136, B: 0.682, C: 0.136, F: 0.022 };
+                    const exp = Math.round(total * pctMap[k]);
+                    headerExtra = `(Count: ${tierSongs.length} / Exp: ~${exp})`;
+                }
+
                 lists.innerHTML += `
                     <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; overflow:hidden;">
-                        <div style="background:${colors[k]}; color:#000; padding:8px; font-weight:bold; text-align:center;">${labels[k]} <span style="font-size:10px; opacity:0.8;">(${tiers[k].length})</span></div>
-                        <div style="max-height:300px; overflow-y:auto;">
-                            ${tiers[k].map((r, i) => `
-                                <div style="padding:6px 10px; border-bottom:1px solid var(--border); font-size:12px; display:flex; justify-content:space-between;">
+                        <div style="background:${colors[k]}; color:#000; padding:8px; font-weight:bold; text-align:center;">${labels[k]} <span style="font-size:10px; opacity:0.8;">${headerExtra}</span></div>
+                        <div style="max-height:350px; overflow-y:auto;">
+                            ${tierSongs.map((r, i) => {
+                    const escapedName = r.song_name.replace(/'/g, "\\'");
+                    let valDisplay = `#${r.average.toFixed(1)}`;
+                    if (tierMethod === 'stddev') {
+                        const z = (r.average - mean) / stddev;
+                        const sign = z > 0 ? '+' : '';
+                        valDisplay = `z ${sign}${z.toFixed(2)}σ`;
+                    } else if (tierMethod === 'percentile') {
+                        const pct = ((total - r._tierRank + 1) / total * 100).toFixed(0);
+                        valDisplay = `${pct}%ile`;
+                    }
+                    return `
+                                <div class="tier-song-item" data-song="${r.song_name}" style="padding:6px 10px; border-bottom:1px solid var(--border); font-size:12px; display:flex; justify-content:space-between; cursor:pointer; transition:background 0.2s;" onclick="showSongDistribution('${escapedName}')" onmouseenter="highlightDotForSong('${escapedName}')" onmouseleave="unhighlightDot()">
                                     <span>${i + 1}. ${r.song_name}</span>
-                                    <span style="color:var(--muted); font-size:10px;">#${r.average}</span>
+                                    <span style="color:var(--muted); font-size:10px;">${valDisplay}</span>
                                 </div>
-                            `).join('')}
+                            `;
+                }).join('')}
                         </div>
                     </div>
-                 `;
+                `;
             });
+        }
+
+        // Highlight song in list when hovering dot
+        function highlightSongInList(songName, highlight) {
+            document.querySelectorAll('.tier-song-item').forEach(el => {
+                if (highlight && el.dataset.song === songName) {
+                    el.style.background = 'rgba(219, 97, 162, 0.3)';
+                } else {
+                    el.style.background = '';
+                }
+            });
+        }
+
+        // Highlight dot when hovering song in list
+        let highlightedDotSong = null;
+        function highlightDotForSong(songName) {
+            highlightedDotSong = songName;
+            redrawTierDotsWithHighlight(songName);
+
+            // Access global tierDotsData to find position
+            if (typeof tierDotsData !== 'undefined' && tierDotsData.length) {
+                const found = tierDotsData.find(d => d.song === songName);
+                const tooltip = document.getElementById('c-tier-tooltip');
+                const canvas = document.getElementById('c-tier-dots');
+
+                if (found && tooltip && canvas) {
+                    tooltip.style.display = 'block';
+                    const w = canvas.width;
+                    const tooltipWidth = 200; // approximate
+                    let leftPos = found.x + 10;
+                    if (leftPos + tooltipWidth > w) {
+                        leftPos = found.x - tooltipWidth - 10;
+                    }
+                    tooltip.style.left = Math.max(0, leftPos) + 'px';
+                    tooltip.style.top = Math.max(0, found.y - 40) + 'px';
+
+                    const colors = { S: '#e6cc00', A: '#3fb950', B: '#238636', C: '#8b949e', F: '#f85149' };
+
+                    let valText = `Avg: ${found.avg.toFixed(2)}`;
+                    if (tierMethod === 'stddev' && tierRedrawConfig.stats) {
+                        const { mean, stddev } = tierRedrawConfig.stats;
+                        const z = (found.avg - mean) / stddev;
+                        const sign = z > 0 ? '+' : '';
+                        valText = `Z-Score: ${sign}${z.toFixed(2)}σ`;
+                    }
+
+                    tooltip.innerHTML = `<strong style="color:${colors[found.tier]}">${found.song}</strong><br>${valText} | Controversy: ${found.std.toFixed(2)}σ`;
+                }
+            }
+        }
+        function unhighlightDot() {
+            highlightedDotSong = null;
+            redrawTierDotsWithHighlight(null);
+            const tooltip = document.getElementById('c-tier-tooltip');
+            if (tooltip) tooltip.style.display = 'none';
+        }
+        function redrawTierDotsWithHighlight(highlightSong) {
+            const canvas = document.getElementById('c-tier-dots');
+            if (!canvas || !tierDotsData.length) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            const paddingLeft = 30;
+            const paddingRight = 50;
+            const usableWidth = w - paddingLeft - paddingRight;
+            const colors = { S: '#e6cc00', A: '#3fb950', B: '#238636', C: '#8b949e', F: '#f85149' };
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Fill background to prevent black edges
+            ctx.fillStyle = '#0d1117';
+            ctx.fillRect(0, 0, w, h);
+
+            // Redraw tier backgrounds from config
+            if (tierRedrawConfig && tierRedrawConfig.rects) {
+                tierRedrawConfig.rects.forEach(rect => {
+                    if (rect.w > 0) {
+                        let fillStyle = colors[rect.t] + '25';
+                        // FIX: If F tier is empty in StdDev, use C color
+                        if (tierMethod === 'stddev' && rect.t === 'F' && (!tierDotsData.some(d => d.tier === 'F'))) {
+                            fillStyle = colors['C'] + '25';
+                        }
+                        ctx.fillStyle = fillStyle;
+                        ctx.fillRect(rect.x, 0, rect.w, h);
+                    }
+                });
+            }
+
+            // Redraw dots
+            tierDotsData.forEach(d => {
+                const isHighlighted = d.song === highlightSong;
+                ctx.beginPath();
+                ctx.arc(d.x, d.y, isHighlighted ? 8 : 4, 0, Math.PI * 2);
+                ctx.fillStyle = colors[d.tier];
+                ctx.fill();
+                ctx.strokeStyle = isHighlighted ? '#fff' : '#000';
+                ctx.lineWidth = isHighlighted ? 2 : 0.5;
+                ctx.stroke();
+
+                if (isHighlighted) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 10px Inter';
+                    // Smart text positioning - avoid clipping
+                    const text = d.song.length > 20 ? d.song.substring(0, 18) + '...' : d.song;
+                    ctx.textAlign = 'center';
+                    let textX = d.x;
+                    // Keep text within bounds
+                    const textWidth = ctx.measureText(text).width;
+                    if (textX - textWidth / 2 < 5) textX = textWidth / 2 + 5;
+                    if (textX + textWidth / 2 > w - 5) textX = w - textWidth / 2 - 5;
+                    ctx.fillText(text, textX, d.y - 12);
+                }
+            });
+
+            // Axis labels
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '9px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText('← Best', paddingLeft, h - 5);
+            ctx.textAlign = 'right';
+            ctx.fillText('Worst →', w - paddingRight, h - 5);
+            ctx.textAlign = 'left';
+            ctx.fillText('High σ ↑', 5, 15);
+        }
+
+        // Change tier method (advanced mode)
+        function changeTierMethod(method) {
+            tierMethod = method;
+            if (dataCache.loaded && dataCache.ranks?.rankings) {
+                renderTierStats(dataCache.ranks.rankings, dataCache.cont?.results || []);
+            }
         }
 
         async function renderAffinity(subData) {
             const wrapAff = document.getElementById('c-affinity');
             const wrapUnq = document.getElementById('c-unique-favs');
 
-            // Check if we are in "All Songs" or a specific subgroup
             const currentSub = document.getElementById('view-subgroup').value;
             const f = document.getElementById('view-franchise').value;
 
-            if (currentSub.toLowerCase().includes('all') || currentSub === '') {
-                wrapAff.innerHTML = '<div style="padding:20px; text-align:center; color:var(--muted);">Select a specific Subgroup to see affinities vs the Global Average.</div>';
-                wrapUnq.innerHTML = '';
+            if (!currentSub || currentSub.toLowerCase().includes('all')) {
+                wrapAff.innerHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:400px; text-align:center; color:var(--muted);">
+                        <div style="font-size:24px; margin-bottom:10px;">📊</div>
+                        <div style="font-size:16px; font-weight:bold; color:var(--text);">Select a Subgroup</div>
+                        <div style="font-size:13px; max-width:300px; margin-top:5px;">Select a specific subgroup above to reveal their unique taste profile.</div>
+                    </div>
+                `;
+                if (wrapUnq) wrapUnq.style.display = 'none';
                 return;
             }
 
             try {
-                // Fetch Global Data for comparison
-                const res = await fetch(`${API}/analysis/rankings?franchise=${f}&subgroup=All%20Songs`); // Assuming 'All Songs' is the global indicator or we need a global endpoint
-                // Note: If 'All Songs' doesn't exist as a "subgroup" name, this might fail. We might need a dedicated global fetch.
-                // Fallback: If fetch fails, we can't do affinity.
-
-                if (!res.ok) throw new Error("Could not fetch global data");
+                // Fetch Global data
+                const res = await fetch(`${API}/analysis/rankings?franchise=${f}&subgroup=All%20Songs`);
+                if (!res.ok) throw new Error("Global data fetch failed");
                 const globalData = await res.json();
 
-                // Map Global Avgs
+                // Fetch conformity data for Taste Makers
+                const confRes = await fetch(`${API}/analysis/conformity?franchise=${f}&subgroup=${currentSub}`);
+                const confData = confRes.ok ? await confRes.json() : null;
+
                 const globalAvgs = {};
                 globalData.rankings.forEach(r => globalAvgs[r.song_name] = r.average);
 
-                // Calculate Deltas (Global Avg - Subgroup Avg)
-                // Positive Delta = Subgroup ranks it BETTER (Lower #) than Global.
-                // Ex: Global #50, Subgroup #10. Delta = 40.
-                const affinity = subData.map(r => {
+                const totalGlobal = globalData.rankings.length || 1;
+                const totalGroup = subData.length || 1;
+
+                // Stats Vars
+                let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+                let n = 0;
+
+                const points = [];
+                const affinityList = [];
+
+                subData.forEach(r => {
                     const gAvg = globalAvgs[r.song_name];
-                    if (gAvg === undefined) return null;
-                    return { ...r, delta: gAvg - r.average, global: gAvg };
-                }).filter(x => x).sort((a, b) => b.delta - a.delta); // Sort by highest positive affinity
+                    if (gAvg !== undefined) {
+                        const gScore = 100 - ((gAvg / totalGlobal) * 100);
+                        const lScore = 100 - ((r.average / totalGroup) * 100);
+                        const delta = lScore - gScore;
 
-                // Affinity List (Top 10)
-                const topAff = affinity.slice(0, 15);
-                wrapAff.innerHTML = `<table style="width:100%; font-size:13px;">
-                    <tr style="text-align:left; color:var(--muted);"><th>Song</th><th>Group Rank</th><th>Global Rank</th><th>Bias</th></tr>
-                    ${topAff.map(s => `
-                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                            <td style="padding:8px;">${s.song_name}</td>
-                            <td style="color:var(--green); font-weight:bold;">#${s.average}</td>
-                            <td style="color:var(--muted);">#${s.global}</td>
-                            <td style="color:var(--pink); font-weight:bold;">+${s.delta.toFixed(1)}</td>
-                        </tr>
-                    `).join('')}
-                </table>`;
+                        points.push({
+                            x: lScore,
+                            y: gScore,
+                            song: r.song_name,
+                            delta: delta,
+                            gRank: gAvg,
+                            lRank: r.average
+                        });
 
-                // Top Unique Favorites (Songs in Global Bottom 50% but Group Top 20%)
-                // Define "Global Bottom": Rank > total/2
-                // Define "Group Top": Rank < total/5
-                const totalSongs = affinity.length;
-                const uniqueFavs = affinity.filter(s => s.global > (totalSongs * 0.4) && s.rank <= (totalSongs * 0.2));
+                        affinityList.push({
+                            ...r,
+                            global: gAvg,
+                            gPct: gScore,
+                            lPct: lScore,
+                            delta
+                        });
 
-                if (uniqueFavs.length === 0) {
-                    wrapUnq.innerHTML = '<div style="padding:20px; color:var(--muted); font-size:12px;">No specific "Hidden Gems" found (High group rank vs Low global rank).</div>';
-                } else {
-                    wrapUnq.innerHTML = `<div style="display:flex; flex-wrap:wrap; gap:8px;">
-                        ${uniqueFavs.map(s => `
-                            <div style="background:rgba(63, 185, 80, 0.1); border:1px solid var(--green); padding:4px 10px; border-radius:12px; font-size:12px; color:var(--green);">
-                                <b>${s.song_name}</b> <span style="opacity:0.7; font-size:10px;">(G:#${s.global} ➔ L:#${s.average})</span>
-                            </div>
-                        `).join('')}
-                    </div>`;
+                        sumX += lScore;
+                        sumY += gScore;
+                        sumXY += lScore * gScore;
+                        sumX2 += lScore * lScore;
+                        sumY2 += gScore * gScore;
+                        n++;
+                    }
+                });
+
+                // Calculate Standard Regression and Bias
+                let r2 = 0, pearson = 0, avgBias = 0;
+                let slope = 1, intercept = 0;
+
+                if (n > 1) {
+                    // Pearson r & Standard R²
+                    const numerator = (n * sumXY) - (sumX * sumY);
+                    const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+                    if (denominator !== 0) {
+                        pearson = numerator / denominator;
+                        r2 = pearson * pearson;
+                    }
+
+                    // Regression Line
+                    slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX) || 1;
+                    intercept = (sumY - slope * sumX) / n || 0;
+
+                    // Bias (Average Deviation)
+                    const sumDeltas = points.reduce((sum, p) => sum + (p.y - p.x), 0);
+                    avgBias = sumDeltas / n;
                 }
 
+                // (Outlier calculation removed per user request)
+
+                // Sort and filter lists
+                const loves = [...affinityList].filter(s => s.delta > 0).sort((a, b) => b.delta - a.delta).slice(0, 10);
+                const hates = [...affinityList].filter(s => s.delta < 0).sort((a, b) => a.delta - b.delta).slice(0, 10);
+
+                // User influence analysis (Hipsters from conformity endpoint)
+                let userInfluence = [];
+                if (confData && confData.hipsters) {
+                    userInfluence = confData.hipsters.slice(0, 5).map(h => ({
+                        user: h.user_id,
+                        avgDeviation: h.score // Conformity score (lower = less conforming) or deviation? Let's treat as score.
+                    }));
+                }
+
+                wrapAff.innerHTML = `
+                    <div style="display:grid; grid-template-columns: 1fr; gap:30px; margin-bottom:40px;">
+                        
+                        <!-- Chart -->
+                        <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                                <div>
+                                    <div style="font-weight:bold; font-size:16px;">Taste Matrix</div>
+                                    <div style="font-size:12px; color:var(--muted);">${currentSub} (X) vs Global (Y)</div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:12px; color:var(--muted); font-family:monospace;">R² = ${(r2 || 0).toFixed(3)}</div>
+                                    <div style="font-size:12px; color:var(--muted); font-family:monospace;">m = ${(slope || 0).toFixed(2)} <span style="color:var(--muted); opacity:0.7;">(Slope)</span></div>
+                                    <div style="font-size:12px; color:var(--muted); font-family:monospace; margin-top:2px;">
+                                        ${Math.abs(avgBias) > 2 ? `<span style="color:${avgBias > 0 ? '#f87171' : '#3fb950'}">c = ${avgBias > 0 ? '+' : ''}${avgBias.toFixed(1)}</span>` : '<span style="opacity:0.5; font-size:11px;">c ≈ 0 (No Bias)</span>'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="position:relative; height:400px; width:100%;">
+                                <canvas id="aff-chart"></canvas>
+                            </div>
+                            <!-- Legend -->
+                            ${renderColorLegend()}
+                        </div>
+
+                        <!-- Outliers Section Removed -->
+
+                        <!-- User Influence Section -->
+                        ${userInfluence.length > 0 ? `
+                        <div style="background:rgba(251,146,60,0.1); border:1px solid rgba(251,146,60,0.3); border-radius:12px; padding:15px;">
+                            <div style="font-weight:bold; color:#fb923c; margin-bottom:10px;">Taste Makers</div>
+                            <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">Users whose rankings deviate most from consensus, shaping this group's unique identity.</div>
+                            <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                                ${userInfluence.map((u, i) => `
+                                    <div style="background:rgba(251,146,60,0.15); padding:8px 14px; border-radius:8px; font-size:13px;">
+                                        <span style="color:#fb923c; font-weight:bold;">#${i + 1}</span>
+                                        <span style="margin-left:6px;">${u.user}</span>
+                                        <span style="color:var(--muted); font-size:11px; margin-left:6px;">±${(u.avgDeviation || 0).toFixed(1)} avg</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <!-- Explanation Panel -->
+                        <details style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:15px; cursor:pointer;">
+                            <summary style="font-weight:bold; color:var(--text); font-size:14px; margin-bottom:10px;">How to Read This Chart</summary>
+                            <div style="font-size:13px; color:var(--muted); line-height:1.6; display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px; margin-top:15px;">
+                                <div>
+                                    <div style="font-weight:bold; color:var(--text); margin-bottom:5px;">Axes: Percentile Ranks (0-100)</div>
+                                    <div style="margin-bottom:8px;">Comparing <b>Relative Rankings</b>, not average scores. Measures "Is this in our Top X% vs Global Top X%?" to remove grading bias.</div>
+                                    <div><span style="color:var(--muted);">--- Neutral Line</span>: Perfect Agreement (x=y).</div>
+                                </div>
+                                <div>
+                                    <div style="font-weight:bold; color:var(--text); margin-bottom:5px;">Stats</div>
+                                    <div><b>R² (Consistency)</b>: Scatter. 1.0 = Line-like.</div>
+                                    <div><b>m (Slope)</b>: Intensity. &lt;1.0 = You are more extreme/passionate than Global.</div>
+                                    <div><b>c (Bias)</b>: Calibration. Positive = You rate higher.</div>
+                                </div>
+                                <div>
+                                    <div style="font-weight:bold; color:var(--text); margin-bottom:5px;">Colors & Meaning</div>
+                                    <div><span style="color:#db61a2;">● Pink</span>: Unique Favs (Group Rank > Global).</div>
+                                    <div><span style="color:#3fb950;">● Green</span>: Contrarian Dislikes (Group Rank < Global).</div>
+                                    <div><span style="color:#a855f7;">● Purple</span>: Anomaly (Breaks our usual taste pattern).</div>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- Cards -->
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
+                            ${renderAffinityCardSection("Core Identity (Loves)", loves, "pink", totalGroup, totalGlobal)}
+                            ${renderAffinityCardSection("Contrarian Takes (Hates)", hates, "blue", totalGroup, totalGlobal)}
+                        </div>
+
+                    </div>
+                `;
+                if (wrapUnq) wrapUnq.style.display = 'none';
+
+                drawAffinityChart(points, outliers);
+
             } catch (e) {
-                console.warn(e);
-                wrapAff.innerHTML = '<div style="padding:20px; text-align:center; color:var(--red);">Could not load global comparison data.</div>';
+                console.error(e);
+                wrapAff.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">Failed to load data: ${e.message}</div>`;
             }
+        }
+
+        function renderColorLegend() {
+            return `
+                <div style="display:flex; justify-content:center; gap:20px; margin-top:10px; font-size:11px; color:var(--muted);">
+                    <div style="display:flex; align-items:center; gap:5px;"><span style="width:8px; height:8px; border-radius:50%; background:rgba(219, 97, 162, 0.9);"></span> Core Identity (Loves)</div>
+                    <div style="display:flex; align-items:center; gap:5px;"><span style="width:8px; height:8px; border-radius:50%; background:rgba(63, 185, 80, 0.9);"></span> Contrarian (Hates)</div>
+                    <div style="display:flex; align-items:center; gap:5px;"><span style="width:8px; height:8px; border-radius:50%; background:rgba(168, 85, 247, 0.9);"></span> Outlier (Unique)</div>
+                    <div style="display:flex; align-items:center; gap:5px;"><span style="width:8px; height:8px; border-radius:50%; background:rgba(255, 255, 255, 0.5);"></span> Neutral</div>
+                </div>
+            `;
+        }
+
+        function renderAffinityCardSection(title, songs, theme, totalGroup, totalGlobal) {
+            const colorRaw = theme === 'pink' ? '219, 97, 162' : '63, 185, 80';
+            const colorHex = theme === 'pink' ? '#db61a2' : '#3fb950';
+            const icon = theme === 'pink' ? '💖' : '❄️';
+
+            return `
+                <div style="background:linear-gradient(180deg, rgba(${colorRaw}, 0.05) 0%, rgba(0,0,0,0) 100%); border:1px solid rgba(${colorRaw}, 0.2); border-radius:12px; overflow:hidden;">
+                    <div style="padding:15px; border-bottom:1px solid rgba(${colorRaw}, 0.1); display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:bold; color:${colorHex};">${icon} ${title}</span>
+                    </div>
+                    <div style="padding:0;">
+                        ${songs.map((s, i) => `
+                            <div class="aff-card-item" data-song="${s.song_name}" 
+                                 style="padding:10px 15px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; font-size:13px; cursor:pointer; transition:background 0.15s;"
+                                 onmouseover="highlightAffinityDot('${s.song_name.replace(/'/g, "\\'")}', true)"
+                                 onmouseout="highlightAffinityDot('${s.song_name.replace(/'/g, "\\'")}', false)"
+                                 onclick="showSongDistribution('${s.song_name.replace(/'/g, "\\'")}')">
+                                <div>
+                                    <div style="font-weight:600;">${i + 1}. ${s.song_name}</div>
+                                    <div style="font-size:11px; color:var(--muted); display:flex; gap:8px;">
+                                        <span>Us #${Math.round(s.average)}/${totalGroup}</span>
+                                        <span style="opacity:0.3;">|</span>
+                                        <span>World #${Math.round(s.global)}/${totalGlobal}</span>
+                                    </div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-weight:bold; color:${colorHex};">${theme === 'pink' ? '+' : ''}${(s.delta || 0).toFixed(0)}%</div>
+                                    <div style="font-size:9px; color:${colorHex}; opacity:0.8; text-transform:uppercase; font-weight:bold; letter-spacing:0.5px; margin-top:2px;">
+                                        ${Math.abs(s.delta) > 20 ? (s.delta > 0 ? 'Cult Classic' : 'Contrarian') : (s.delta > 0 ? 'Local Favorite' : 'Skeptical')}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function highlightAffinityDot(songName, isHighlight) {
+            if (!window.affinityChart) return;
+            const chart = window.affinityChart;
+            const dataset = chart.data.datasets[0];
+            const pointIndex = dataset.data.findIndex(p => p.song === songName);
+            if (pointIndex === -1) return;
+
+            // Update point radius to highlight
+            if (!chart._originalRadii) {
+                chart._originalRadii = dataset.data.map(() => 6);
+            }
+
+            dataset.data.forEach((p, i) => {
+                if (isHighlight) {
+                    dataset.pointRadius = dataset.data.map((_, idx) => idx === pointIndex ? 14 : 4);
+                    dataset.pointBorderWidth = dataset.data.map((_, idx) => idx === pointIndex ? 3 : 0);
+                    dataset.pointBorderColor = dataset.data.map((_, idx) => idx === pointIndex ? '#fff' : 'transparent');
+                } else {
+                    dataset.pointRadius = 6;
+                    dataset.pointBorderWidth = 0;
+                    dataset.pointBorderColor = 'transparent';
+                }
+            });
+            chart.update('none');
+        }
+        // ========== SUBUNIT RANKINGS TAB ==========
+        async function renderSubranks() {
+            const tbody = document.getElementById('tbody-subranks');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center;">Loading...</td></tr>';
+
+            const f = document.getElementById('view-franchise').value;
+            const subgroups = allSubgroups.filter(sg => sg.franchise === f);
+
+            // Always fetch/use Global (All Songs) rankings for this tab to ensure consistency
+            let globalRanks = null;
+            try {
+                // Check if we have global ranks cached for this franchise
+                if (window.globalDataCache && window.globalDataCache[f]) {
+                    globalRanks = window.globalDataCache[f];
+                } else {
+                    const res = await fetch(`${API}/analysis/rankings?franchise=${f}&subgroup=All%20Songs`);
+                    const data = await res.json();
+                    globalRanks = data.rankings;
+                    if (!window.globalDataCache) window.globalDataCache = {};
+                    window.globalDataCache[f] = globalRanks;
+                }
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="6" style="color:var(--red);">Failed to load rankings</td></tr>';
+                return;
+            }
+
+            const songMap = {};
+            globalRanks.forEach((r, i) => songMap[r.song_name] = { rank: i + 1, score: r.average });
+
+            // Compute stats for each subgroup
+            const stats = subgroups.map(sg => {
+                let totalRank = 0, validCount = 0;
+                let bestSong = { name: '-', rank: 999 };
+
+                (sg.songs || []).forEach(sName => {
+                    const sData = songMap[sName];
+                    if (sData) {
+                        totalRank += sData.rank;
+                        validCount++;
+                        if (sData.rank < bestSong.rank) bestSong = { name: sName, rank: sData.rank };
+                    }
+                });
+
+                const avgRank = validCount > 0 ? totalRank / validCount : 999;
+
+                // Determine Type
+                let type = "Other", typeColor = "var(--muted)";
+                if (sg.is_subunit) {
+                    if (sg.name.includes("Solos")) { type = "Solo"; typeColor = "var(--pink)"; }
+                    else { type = "Subunit"; typeColor = "var(--purple)"; }
+                } else if (sg.name === "All Songs" || sg.name === "Group Songs") {
+                    type = "Main"; typeColor = "var(--green)";
+                }
+
+                return { ...sg, avgRank, bestSong, type, typeColor };
+            });
+
+            stats.sort((a, b) => a.avgRank - b.avgRank);
+
+            tbody.innerHTML = stats.map((sg, i) => `
+                <tr class="clickable-row" onclick="openSubgroupDetail('${sg.name.replace(/'/g, "\\'")}')">
+                    <td class="col-rank">#${i + 1}</td>
+                    <td><span style="font-size:10px; font-weight:bold; padding:3px 8px; border-radius:12px; border:1px solid ${sg.typeColor}; color:${sg.typeColor};">${sg.type}</span></td>
+                    <td style="font-weight:600;">${sg.name}</td>
+                    <td class="col-metric">${sg.song_count}</td>
+                    <td class="col-metric">#${sg.avgRank.toFixed(1)}</td>
+                    <td style="text-align:right; font-size:12px; color:var(--muted);">${truncate(sg.bestSong.name, 20)} <span style="color:var(--pink);">#${sg.bestSong.rank}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function openSubgroupDetail(subgroupName) {
+            const f = document.getElementById('view-franchise').value;
+            const sg = allSubgroups.find(s => s.name === subgroupName && s.franchise === f);
+            if (!sg) return;
+
+            const modal = document.getElementById('song-modal');
+            const title = document.getElementById('song-modal-title');
+            const content = document.getElementById('song-modal-content');
+
+            title.innerText = `${sg.name} (${sg.song_count} songs)`;
+
+            // Use global rankings for consistency in the detail view
+            let globalRanks = (window.globalDataCache && window.globalDataCache[f]) ? window.globalDataCache[f] : [];
+            const songMap = {};
+            globalRanks.forEach((r, i) => songMap[r.song_name] = { rank: i + 1, score: r.average });
+
+            const songList = (sg.songs || []).map(sName => {
+                const data = songMap[sName] || { rank: 999, score: 0 };
+                return { name: sName, ...data };
+            }).sort((a, b) => a.rank - b.rank);
+
+            content.innerHTML = `
+                <div style="margin-bottom:15px; font-size:13px; color:var(--muted);">Click any song to see its global ranking distribution.</div>
+                <div style="display:grid; gap:8px; max-height:60vh; overflow-y:auto;">
+                    ${songList.map((s, i) => `
+                        <div style="background:var(--bg); padding:12px 15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; border:1px solid var(--border); transition:border-color 0.2s;"
+                             onmouseover="this.style.borderColor='var(--pink)'" onmouseout="this.style.borderColor='var(--border)'"
+                             onclick="showSongDistribution('${s.name.replace(/'/g, "\\'")}')">
+                            <div style="font-weight:600;">${i + 1}. ${s.name}</div>
+                            <div style="display:flex; gap:15px; align-items:center;">
+                                <div style="font-size:11px; color:var(--muted);">Global #${s.rank}</div>
+                                <div style="font-family:monospace; color:${s.rank <= 10 ? 'var(--pink)' : 'var(--text)'}; font-weight:bold;">${s.score.toFixed(1)}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+
+        function drawAffinityChart(points, outliers = []) {
+            const ctx = document.getElementById('aff-chart').getContext('2d');
+            if (window.affinityChart) window.affinityChart.destroy();
+
+            const outlierSongs = new Set(outliers.map(o => o.song));
+
+            window.affinityChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Songs',
+                        data: points,
+                        backgroundColor: (ctx) => {
+                            const p = ctx.raw;
+                            if (!p) return 'rgba(255,255,255,0.3)';
+                            if (outlierSongs.has(p.song)) return 'rgba(168, 85, 247, 0.9)'; // Purple for outliers
+                            if (p.delta > 15) return 'rgba(219, 97, 162, 0.9)';
+                            if (p.delta < -15) return 'rgba(63, 185, 80, 0.9)';
+                            return 'rgba(255, 255, 255, 0.5)';
+                        },
+                        pointRadius: (ctx) => {
+                            const p = ctx.raw;
+                            return (p && outlierSongs.has(p.song)) ? 8 : 6;
+                        },
+                        pointHoverRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Group Score (Local Taste)' },
+                            min: 0, max: 100,
+                            grid: { color: '#333' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Global Score (Mainstream)' },
+                            min: 0, max: 100,
+                            grid: { color: '#333' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const p = context.raw;
+                                    return `${p.song}: L=${p.x.toFixed(0)} / G=${p.y.toFixed(0)} (Bias: ${p.delta > 0 ? '+' : ''}${p.delta.toFixed(0)})`;
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                neutral: {
+                                    type: 'line',
+                                    xMin: 0, xMax: 100, yMin: 0, yMax: 100,
+                                    borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderDash: [4, 4],
+                                    label: { content: 'Neutral (x=y)', enabled: true, position: 'end', color: 'rgba(255,255,255,0.4)', font: { size: 10 } }
+                                },
+                                q1: { type: 'box', xMin: 50, xMax: 100, yMin: 50, yMax: 100, backgroundColor: 'rgba(255,255,255,0.02)', label: { content: 'Universal Hit', enabled: true, color: 'rgba(255,255,255,0.3)' } },
+                                q2: { type: 'box', xMin: 0, xMax: 50, yMin: 50, yMax: 100, backgroundColor: 'rgba(63, 185, 80, 0.1)', label: { content: 'Overrated?', enabled: true, color: 'rgba(63, 185, 80, 0.8)' } },
+                                q4: { type: 'box', xMin: 50, xMax: 100, yMin: 0, yMax: 50, backgroundColor: 'rgba(219, 97, 162, 0.1)', label: { content: 'Cult Classic', enabled: true, color: 'rgba(219, 97, 162, 0.8)' } },
+                                q3: { type: 'box', xMin: 0, xMax: 50, yMin: 0, yMax: 50, backgroundColor: 'rgba(0,0,0,0.1)', label: { content: 'Miss', enabled: true, color: 'rgba(255,255,255,0.1)' } }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         /* --- RIVALS LOGIC --- */
@@ -2420,6 +3396,7 @@
 
         function switchMatchTab(tab) {
             // Update button styles
+            if (tab === 'oshi') fetchBiasUserList();
             const buttons = { duel: document.getElementById('mtab-duel'), match: document.getElementById('mtab-match'), oshi: document.getElementById('mtab-oshi') };
             Object.keys(buttons).forEach(key => {
                 const btn = buttons[key];
@@ -2439,6 +3416,149 @@
             document.getElementById('mview-oshi').classList.toggle('hidden', tab !== 'oshi');
         }
 
+        // Oshi Detector Functions
+        function fetchBiasUserList(autoAnalyze = false) {
+            // Reuses allUsers already populated by fetchUserList
+            const sel = document.getElementById('bias-user');
+            if (sel && allUsers.length > 0) {
+                if (sel.options.length <= 1) {
+                    const opts = allUsers.map(u => `<option value="${u}">${u}</option>`).join('');
+                    sel.innerHTML = '<option value="">Select User</option>' + opts;
+                }
+                // Auto-select random user and run analysis
+                if (autoAnalyze && allUsers.length > 0 && !sel.value) {
+                    const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
+                    sel.value = randomUser;
+                    analyzeBias();
+                }
+            }
+        }
+
+        async function analyzeBias() {
+            const user = document.getElementById('bias-user').value;
+            const resultsDiv = document.getElementById('bias-results');
+            if (!user) {
+                resultsDiv.innerHTML = '<div style="text-align:center; color:var(--muted);">Select a user first</div>';
+                return;
+            }
+            resultsDiv.innerHTML = '<div style="text-align:center; color:var(--muted);">Analyzing...</div>';
+
+            const f = document.getElementById('view-franchise').value;
+            const sub = 'All Songs'; // Always use All Songs for Oshi Detector context
+
+            try {
+                // Fetch user-specific rankings from divergence endpoint
+                const res = await fetch(`${API}/analysis/divergence?franchise=${f}&subgroup=${encodeURIComponent(sub)}`);
+                const data = await res.json();
+
+                if (!data.rankings || !data.song_names) {
+                    resultsDiv.innerHTML = '<div style="color:var(--red);">No ranking data available</div>';
+                    return;
+                }
+
+                // Build song name -> user rank map and global weighted average
+                const userRanks = {};
+                const allRanksValues = [];
+                for (const [songId, rankings] of Object.entries(data.rankings)) {
+                    const songName = data.song_names[songId];
+                    if (rankings[user] !== undefined) {
+                        userRanks[songName] = rankings[user];
+                        allRanksValues.push(rankings[user]);
+                    }
+                }
+
+                const globalAvg = allRanksValues.reduce((a, b) => a + b, 0) / (allRanksValues.length || 1);
+                window.lastBiasGlobalAvg = Math.round(globalAvg);
+
+                // Find all solo subgroups for this franchise
+                const soloSubgroups = allSubgroups.filter(sg =>
+                    sg.franchise === f &&
+                    sg.is_subunit &&
+                    sg.name.includes('Solos')
+                );
+
+                if (soloSubgroups.length === 0) {
+                    resultsDiv.innerHTML = '<div style="color:var(--muted);">No solo subgroups defined for this franchise</div>';
+                    return;
+                }
+
+                // Identify "true" subunit songs to exclude from solo counts
+                const trueSubunits = allSubgroups.filter(sg => sg.franchise === f && sg.is_subunit && !sg.name.includes('Solos'));
+                const subunitSongs = new Set();
+                trueSubunits.forEach(sg => (sg.songs || []).forEach(s => subunitSongs.add(s)));
+
+                // Calculate average rank and bias for each character's solo songs
+                const characterScores = soloSubgroups.map(sg => {
+                    const charName = sg.name.replace(' Solos', '');
+                    let totalRank = 0;
+                    let count = 0;
+                    const rankedSongs = [];
+
+                    (sg.songs || []).forEach(songName => {
+                        // EXCLUDE songs that belong to named subunits (CatChu!, etc.)
+                        if (subunitSongs.has(songName)) return;
+
+                        if (userRanks[songName] !== undefined) {
+                            totalRank += userRanks[songName];
+                            count++;
+                            rankedSongs.push({ name: songName, rank: userRanks[songName] });
+                        }
+                    });
+
+                    const avg_rank = count > 0 ? parseFloat((totalRank / count).toFixed(1)) : 999;
+                    const bias = count > 0 ? parseFloat((globalAvg - avg_rank).toFixed(1)) : 0;
+                    const pureCount = (sg.songs || []).filter(s => !subunitSongs.has(s)).length;
+
+                    return {
+                        name: charName,
+                        avg_rank,
+                        bias,
+                        count,
+                        totalSongs: pureCount,
+                        songs: rankedSongs.sort((a, b) => a.rank - b.rank)
+                    };
+                }).filter(c => c.count > 0).sort((a, b) => b.bias - a.bias);
+
+                // Render results
+                if (characterScores.length === 0) {
+                    resultsDiv.innerHTML = '<div style="color:var(--muted);">No solo songs ranked by this user</div>';
+                    return;
+                }
+
+                window.lastBiasData = characterScores;
+
+                let html = '';
+                characterScores.forEach((b, i) => {
+                    const isTop = i === 0;
+                    const biasColor = b.bias > 0 ? (isTop ? 'var(--pink)' : 'var(--green)') : 'var(--red)';
+                    html += `
+                     <div class="stat-card" 
+                          onclick="this.nextElementSibling.classList.toggle('hidden')"
+                          style="padding:15px; border-color:${isTop ? 'var(--pink)' : 'var(--border)'}; cursor:pointer; transition:all 0.2s; position:relative;">
+                        <div style="font-size:10px; opacity:0.7; text-transform:uppercase; letter-spacing:1px;">${isTop ? '🏆 OSHI' : 'Favored Member'}</div>
+                        <div style="font-size:16px; font-weight:bold; color:#fff; margin:5px 0;">${b.name}</div>
+                        <div style="font-size:24px; font-weight:900; color:${biasColor}">
+                            ${b.bias > 0 ? '+' : ''}${b.bias}
+                        </div>
+                        <div style="font-size:11px; opacity:0.5; margin-top:5px;">Avg Rank #${b.avg_rank} (${b.count}/${b.totalSongs})</div>
+                        <div style="font-size:9px; color:var(--pink); margin-top:8px; opacity:0.6;">Click to view songs ↓</div>
+                     </div>
+                     <div class="hidden card" style="grid-column: 1 / -1; margin: -10px 0 20px 0; padding:15px; border-top:none; border-top-left-radius:0; border-top-right-radius:0; background:rgba(0,0,0,0.3);">
+                        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:10px;">
+                            ${b.songs.map(s => `
+                                <div style="display:flex; justify-content:space-between; font-size:11px; padding:5px; background:rgba(255,255,255,0.05); border-radius:4px;">
+                                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-right:10px;">${s.name}</span>
+                                    <span style="font-family:monospace; font-weight:bold; color:${s.rank <= 10 ? 'var(--pink)' : s.rank <= 30 ? 'var(--green)' : 'inherit'};">#${s.rank}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                     </div>`;
+                });
+                resultsDiv.innerHTML = html;
+            } catch (e) {
+                resultsDiv.innerHTML = `<div style="color:var(--red);">Error: ${e.message}</div>`;
+            }
+        }
 
 
         async function runDuel() {
@@ -2454,6 +3574,18 @@
             document.getElementById('duel-results').classList.remove('hidden');
 
             try {
+                // Fetch Global data for context if not present
+                let globalAvgs = {};
+                if (!window.globalDataCache) {
+                    const gRes = await fetch(`${API}/analysis/rankings?franchise=${f}&subgroup=All%20Songs`);
+                    if (gRes.ok) {
+                        const gData = await gRes.json();
+                        window.globalDataCache = {};
+                        gData.rankings.forEach(r => window.globalDataCache[r.song_name] = r.average);
+                    }
+                }
+                globalAvgs = window.globalDataCache || {};
+
                 const res = await fetch(`${API}/analysis/head-to-head?franchise=${f}&subgroup=${sub}&user_a=${u1}&user_b=${u2}`);
                 const data = await res.json();
 
@@ -2467,17 +3599,21 @@
                 const limit = getLimit(10, data.diffs.length);
                 const disputes = data.diffs.slice(0, limit);
                 document.getElementById('duel-disputes').innerHTML = `<table>
-                    <colgroup><col><col style="width:80px"><col style="width:80px"><col style="width:60px"></colgroup>
-                    <tr><th>Song</th><th>${u1}</th><th>${u2}</th><th>Diff</th></tr>` +
+                    <colgroup><col><col style="width:60px"><col style="width:60px"><col style="width:60px"><col style="width:50px"></colgroup>
+                    <tr><th>Song</th><th>${u1}</th><th>${u2}</th><th>Global</th><th>Diff</th></tr>` +
                     disputes.map(d => `
                         <tr onclick="showSongDistribution('${d.name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row">
                             <td>${d.name}</td>
                             <td style="color:${d.r1 < d.r2 ? 'var(--green)' : 'var(--muted)'}">#${d.r1}</td>
                             <td style="color:${d.r2 < d.r1 ? 'var(--green)' : 'var(--muted)'}">#${d.r2}</td>
+                            <td style="color:var(--muted); opacity:0.6;">#${(globalAvgs[d.name] || 0).toFixed(0)}</td>
                             <td style="font-weight:bold; color:var(--red)">${Math.round(d.diff)}</td>
                         </tr>`).join('') + `</table>`;
 
-            } catch (e) { console.error(e); document.getElementById('duel-score').innerHTML = "Err"; }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('duel-score').innerHTML = "Err";
+            }
         }
 
         async function findMatches() {
@@ -2513,7 +3649,7 @@
             }
         }
 
-        async function fetchUserList() {
+        async function fetchBiasUserList() {
             const f = document.getElementById('view-franchise').value;
             const sub = document.getElementById('view-subgroup').value;
             const sel = document.getElementById('bias-user');
@@ -2530,112 +3666,6 @@
                 }
             } catch (e) { console.error("Error fetching users:", e); }
         }
-
-        window.lastBiasData = [];
-        async function analyzeBias() {
-            const u = document.getElementById('bias-user').value;
-            if (!u) return;
-            const f = document.getElementById('view-franchise').value;
-            const res = document.getElementById('bias-results');
-            res.innerHTML = "Computing bias...";
-
-            try {
-                const r = await fetch(`${API}/analysis/oshi-bias?franchise=${f}&user=${u}`);
-                const d = await r.json();
-
-                if (d.error) { res.innerHTML = d.error; return; }
-
-                window.lastBiasData = d.biases;
-                window.lastBiasGlobalAvg = d.global_avg;
-                const displayList = window.advancedMode ? d.biases : d.biases.slice(0, 5);
-
-                let html = '';
-                displayList.forEach((b, i) => {
-                    const isTop = i === 0;
-                    const biasColor = b.bias > 0 ? (isTop ? 'var(--pink)' : 'var(--green)') : 'var(--red)';
-
-                    html += `
-                     <div class="stat-card" 
-                          onclick="showMemberBiasDetail(${i})"
-                          style="padding:15px; border-color:${isTop ? 'var(--pink)' : 'var(--border)'}; cursor:pointer; transition:all 0.2s;"
-                          onmouseover="this.style.transform='translateY(-3px)'; this.style.borderColor='var(--pink)'; this.style.boxShadow='0 4px 12px rgba(219,97,162,0.2)'"
-                          onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='${isTop ? 'var(--pink)' : 'var(--border)'}'; this.style.boxShadow='none'">
-                        <div style="font-size:10px; opacity:0.7; text-transform:uppercase; letter-spacing:1px;">${isTop ? '🏆 OSHI' : 'Favored Member'}</div>
-                        <div style="font-size:16px; font-weight:bold; color:#fff; margin:5px 0;">${b.name}</div>
-                        <div style="font-size:24px; font-weight:900; color:${biasColor}">
-                            ${b.bias > 0 ? '+' : ''}${b.bias}
-                        </div>
-                        <div style="font-size:11px; opacity:0.5; margin-top:5px;">Avg Rank #${b.avg_rank} (${b.count} songs)</div>
-                        <div style="font-size:9px; color:var(--pink); margin-top:8px; opacity:0; transition:0.2s;" class="click-hint">Click for song list →</div>
-                     </div>`;
-                });
-
-                // Add a hover style via CSS to show the hint
-                const styleId = 'bias-hover-style';
-                if (!document.getElementById(styleId)) {
-                    const style = document.createElement('style');
-                    style.id = styleId;
-                    style.innerHTML = `.stat-card:hover .click-hint { opacity: 0.8 !important; }`;
-                    document.head.appendChild(style);
-                }
-
-                res.innerHTML = html || "No significant bias found (You love everyone equally?).";
-            } catch (e) { console.error(e); res.innerHTML = "Error."; }
-        }
-
-        window.showMemberBiasDetail = function (index) {
-            const data = window.lastBiasData[index];
-            if (!data) return;
-
-            const modal = document.getElementById('song-modal');
-            const content = document.getElementById('song-modal-content');
-            const title = document.getElementById('song-modal-title');
-
-            title.textContent = `${data.name} Analysis`;
-            modal.classList.remove('hidden');
-            modal.style.display = 'flex';
-
-            content.innerHTML = `
-                <div style="margin-bottom:20px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                    <div class="card" style="padding:12px; text-align:center; border-color:var(--pink);">
-                        <div style="font-size:10px; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Bias Intensity</div>
-                        <div style="font-size:20px; font-weight:900; color:var(--pink)">${data.bias > 0 ? '+' : ''}${data.bias}</div>
-                    </div>
-                    <div class="card" style="padding:12px; text-align:center;">
-                        <div style="font-size:10px; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Average Rank</div>
-                        <div style="font-size:20px; font-weight:900;">#${data.avg_rank}</div>
-                    </div>
-                </div>
-
-                <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <h4 style="font-size:14px; color:var(--pink);">Songs Involving ${data.name}</h4>
-                    <span style="font-size:11px; color:var(--muted);">${data.count} songs ranked</span>
-                </div>
-
-                <div style="max-height:350px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:rgba(0,0,0,0.2);">
-                    <table style="width:100%; font-size:12px; border-collapse:collapse;">
-                        <thead>
-                            <tr style="background:rgba(255,255,255,0.05); text-align:left;">
-                                <th style="padding:10px; border-bottom:1px solid var(--border);">Song Title</th>
-                                <th style="padding:10px; border-bottom:1px solid var(--border); text-align:center;">Rank</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.songs.map(s => `
-                                <tr hover-style="background:rgba(255,255,255,0.02)">
-                                    <td style="padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.03);">${s.name}</td>
-                                    <td style="padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.03); text-align:center; font-weight:bold; color:${s.rank <= 10 ? 'var(--green)' : (s.rank > 50 ? 'var(--red)' : '#fff')}">#${s.rank}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.03); border-radius:6px; font-size:11px; color:var(--muted); line-height:1.4;">
-                    <strong>About Bias:</strong> A positive score means you rank songs involving this member <strong>better</strong> than your global average rank of <strong>${window.lastBiasGlobalAvg || '??'}</strong>.
-                </div>
-            `;
-        };
 
 
         /* --- CONSTELLATION GRAPH --- */
@@ -3676,8 +4706,9 @@
                         else if (i === 1) { rankClass = 'silver'; itemClass = 'top-3'; }
                         else if (i === 2) { rankClass = 'bronze'; itemClass = 'top-3'; }
 
+                        const escapedName = r.song_name.replace(/'/g, "\\'");
                         return `
-                            <div class="rank-item ${itemClass}">
+                            <div class="rank-item ${itemClass}" onclick="showSongDistribution('${escapedName}')" style="cursor:pointer;">
                                 <div class="rank-number ${rankClass}">#${r.rank}</div>
                                 <div class="song-name">${r.song_name}</div>
                             </div>
@@ -3728,6 +4759,8 @@
 
         init();
     </script>
+    <!-- Load app.js for complete Tiers tab and other advanced features -->
+    <script src="/app.js"></script>
 </body>
 
 </html>
