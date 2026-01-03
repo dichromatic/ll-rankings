@@ -1045,3 +1045,267 @@ class ControversyIndexService:
             
         results.sort(key=lambda x: x['bias'], reverse=True)
         return {"global_avg": round(global_avg, 1), "biases": results}
+
+    @staticmethod
+    def compute_artist_fans(franchise_id: str, artist_id: str, db: Session) -> dict:
+        """Calculate which users favor a specific artist most (reverse of compute_oshi_bias)."""
+        try:
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            data_path = os.path.join(base_dir, "data", "artists-info.json")
+            if not os.path.exists(data_path):
+                return {"error": "Artist data not found"}
+            with open(data_path, 'r', encoding='utf-8') as f:
+                artists = json.load(f)
+        except Exception as e:
+            return {"error": str(e)}
+
+        # Find the target artist name
+        target_artist_name = None
+        for a in artists:
+            if a.get('characters') and len(a['characters']) == 1:
+                if a['characters'][0] == artist_id:
+                    target_artist_name = a.get('englishName', a['name'])
+                    break
+        
+        if not target_artist_name:
+            return {"error": f"Artist {artist_id} not found"}
+
+        # Build group_chars mapping for fuzzy matching
+        group_chars = {}
+        for a in artists:
+            if a.get('characters'):
+                group_chars[a['name']] = a['characters']
+                if a.get('englishName'):
+                    group_chars[a['englishName']] = a['characters']
+
+        # Find all subgroups for this artist
+        all_subgroups = db.query(Subgroup).filter(
+            Subgroup.franchise_id == to_uuid(franchise_id)
+        ).all()
+
+        artist_song_ids = set()
+        for sg in all_subgroups:
+            name_key = sg.name
+            matched_cids = None
+            
+            if name_key in group_chars:
+                matched_cids = group_chars[name_key]
+            elif name_key.endswith(" Solos"):
+                base_name = name_key.replace(" Solos", "")
+                for en_name, cids in group_chars.items():
+                    if len(cids) == 1 and base_name in en_name:
+                        matched_cids = cids
+                        break
+            
+            if matched_cids and len(matched_cids) == 1 and matched_cids[0] == artist_id:
+                if sg.song_ids:
+                    artist_song_ids.update(sg.song_ids)
+
+        if not artist_song_ids:
+            return {"error": f"No songs found for {target_artist_name}"}
+
+        # Get all submissions
+        submissions = db.query(Submission).filter(
+            Submission.franchise_id == to_uuid(franchise_id),
+            Submission.submission_status == SubmissionStatus.VALID
+        ).all()
+
+        # Group by username (take latest per user)
+        user_subs = {}
+        for sub in submissions:
+            if sub.username not in user_subs or sub.created_at > user_subs[sub.username].created_at:
+                user_subs[sub.username] = sub
+
+        # Pre-fetch song names for artist songs
+        songs = db.query(Song).filter(Song.id.in_([UUID(sid) for sid in artist_song_ids])).all()
+        song_names = {str(s.id): s.name for s in songs}
+
+        results = []
+        for username, sub in user_subs.items():
+            user_ranks = sub.parsed_rankings
+            if not user_ranks:
+                continue
+
+            all_ranks = [float(v) for v in user_ranks.values()]
+            global_avg = sum(all_ranks) / len(all_ranks) if all_ranks else 0
+
+            artist_ranks = []
+            song_details = []
+            for sid in artist_song_ids:
+                if sid in user_ranks:
+                    rank = float(user_ranks[sid])
+                    artist_ranks.append(rank)
+                    song_details.append({
+                        "name": song_names.get(sid, "Unknown"),
+                        "rank": rank
+                    })
+
+            if not artist_ranks:
+                continue
+
+            artist_avg = sum(artist_ranks) / len(artist_ranks)
+            bias = global_avg - artist_avg
+
+            results.append({
+                "username": username,
+                "bias": round(bias, 1),
+                "artist_avg": round(artist_avg, 1),
+                "global_avg": round(global_avg, 1),
+                "song_count": len(artist_ranks),
+                "songs": sorted(song_details, key=lambda x: x['rank'])
+            })
+
+        results.sort(key=lambda x: x['bias'], reverse=True)
+        return {
+            "artist_id": artist_id,
+            "artist_name": target_artist_name,
+            "song_count": len(artist_song_ids),
+            "fans": results
+        }
+
+    @staticmethod
+    def compute_release_trends(franchise_id: str, db: Session, subgroup_name: str = "All Songs") -> dict:
+        """
+        Compute ranking trends by release date.
+        Returns yearly aggregates and individual song timeline data.
+        """
+        # Check cache
+        cache_key = AnalysisCache.make_key(f"release_trends_{subgroup_name}", franchise_id)
+        cached = AnalysisCache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        # Get specific subgroup (or "All Songs" default)
+        subgroup = db.query(Subgroup).filter(
+            Subgroup.franchise_id == to_uuid(franchise_id),
+            Subgroup.name == subgroup_name
+        ).first()
+
+        if not subgroup or not subgroup.song_ids:
+            return {"yearly_trends": [], "timeline": []}
+
+        # Fetch all songs with release dates for this franchise
+        songs = db.query(Song).filter(
+            Song.franchise_id == to_uuid(franchise_id)
+        ).all()
+
+        song_by_id = {str(s.id): s for s in songs}
+        song_ids_in_subgroup = set(subgroup.song_ids)
+
+        # Get all valid submissions
+        submissions = db.query(Submission).filter(
+            Submission.franchise_id == to_uuid(franchise_id),
+            Submission.submission_status == SubmissionStatus.VALID
+        ).all()
+
+        if not submissions:
+            return {"yearly_trends": [], "timeline": []}
+
+        # Calculate average rank for each song across all users
+        song_ranks = defaultdict(list)
+        for sub in submissions:
+            if not sub.parsed_rankings:
+                continue
+            for song_id, rank in sub.parsed_rankings.items():
+                if song_id in song_ids_in_subgroup:
+                    try:
+                        song_ranks[song_id].append(int(rank))
+                    except (ValueError, TypeError):
+                        continue
+
+        # Build timeline data (individual songs)
+        timeline = []
+        yearly_data = defaultdict(list)  # year -> list of avg ranks
+
+        # Helper to hold intermediate data
+        raw_song_data = []
+        all_stdevs = []
+
+        # First pass: Calculate stats for all songs
+        for song_id, ranks in song_ranks.items():
+            if song_id not in song_by_id:
+                continue
+
+            song = song_by_id[song_id]
+            if not song.release_date:
+                continue
+
+            avg_rank = sum(ranks) / len(ranks)
+            year = song.release_date.year
+            
+            import statistics
+            try:
+                stdev = statistics.stdev(ranks) if len(ranks) > 1 else 0.0
+            except:
+                stdev = 0.0
+            
+            if len(ranks) > 1:
+                all_stdevs.append(stdev)
+                
+            raw_song_data.append({
+                "song_id": song_id,
+                "title": song.name,
+                "release_date": song.release_date,
+                "avg_rank": avg_rank,
+                "stdev": stdev,
+                "year": year
+            })
+            
+            yearly_data[year].append(avg_rank)
+
+        # Calculate dynamic thresholds
+        if len(all_stdevs) >= 4:
+            quantiles = statistics.quantiles(all_stdevs, n=4)
+            p_safe = quantiles[0]  # 25th percentile
+            p_mid = quantiles[1]   # Median
+            p_cont = quantiles[2]  # 75th percentile
+        else:
+            p_safe, p_mid, p_cont = 20.0, 30.0, 40.0
+
+        # Second pass: Build timeline with colors
+        for item in raw_song_data:
+            stdev = item['stdev']
+            
+            if stdev <= p_safe:
+                color = "#22d3ee"  # Cyan (Consensus)
+                label = "Universal Consensus"
+            elif stdev <= p_mid:
+                color = "#a855f7"  # Purple (Mostly Agreed)
+                label = "Mostly Agreed"
+            elif stdev <= p_cont:
+                color = "#f472b6"  # Pink (Controversial)
+                label = "Controversial"
+            else:
+                color = "#f87171"  # Red (War Zone)
+                label = "War Zone"
+
+            timeline.append({
+                "song_id": item['song_id'],
+                "title": item['title'],
+                "date": item['release_date'].isoformat(),
+                "rank": round(item['avg_rank'], 1),
+                "color": color,
+                "controversy": round(stdev, 2),
+                "label": label
+            })
+
+        # Sort timeline by date
+        timeline.sort(key=lambda x: x["date"])
+
+        # Build yearly trends
+        yearly_trends = []
+        for year in sorted(yearly_data.keys()):
+            ranks = yearly_data[year]
+            yearly_trends.append({
+                "year": year,
+                "avg_rank": round(sum(ranks) / len(ranks), 1),
+                "song_count": len(ranks)
+            })
+
+        result = {
+            "yearly_trends": yearly_trends,
+            "timeline": timeline
+        }
+
+        AnalysisCache.set(cache_key, result, ttl=600)  # 10 min cache
+        return result

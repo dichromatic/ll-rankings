@@ -546,3 +546,31 @@ async def get_oshi_bias(
          raise HTTPException(status_code=404, detail="Franchise not found")
          
     return ControversyIndexService.compute_oshi_bias(str(franchise_obj.id), user, db)
+
+
+@router.get("/analysis/oshi-fans")
+async def get_oshi_fans(
+    franchise: str,
+    artist: str,
+    db: Session = Depends(get_db)
+):
+    """Get users ranked by how much they favor a specific artist"""
+    franchise_obj = db.query(Franchise).filter_by(name=franchise).first()
+    if not franchise_obj:
+        raise HTTPException(status_code=404, detail="Franchise not found")
+        
+    return ControversyIndexService.compute_artist_fans(str(franchise_obj.id), artist, db)
+
+
+@router.get("/analysis/trends")
+async def get_release_trends(
+    franchise: str,
+    subgroup: str = "All Songs",
+    db: Session = Depends(get_db)
+):
+    """Get ranking trends by release year and individual song timeline"""
+    franchise_obj = db.query(Franchise).filter_by(name=franchise).first()
+    if not franchise_obj:
+        raise HTTPException(status_code=404, detail="Franchise not found")
+        
+    return ControversyIndexService.compute_release_trends(str(franchise_obj.id), db, subgroup)

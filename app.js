@@ -273,6 +273,7 @@ async function syncData(forceFetch = false) {
     if (activeTab === 'opps') renderMatrix(sub, f);
     if (activeTab === 'tiers') renderTierStats(ranks.rankings, cont?.results || []);
     if (activeTab === 'aff') renderAffinity(ranks.rankings);
+    if (activeTab === 'trends') fetchTrendsData();
     if (activeTab === 'subranks') renderSubranks();
 
     // Render dashboard constellation when on dashboard tab
@@ -927,7 +928,7 @@ async function fetchSpiceData(force = false) {
     } catch (e) {
         console.error("Spice fetch error:", e);
         if (el) el.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">
-                    <div style="font-size:24px; margin-bottom:10px;">⚠️</div>
+                    <div style="font-size:24px; margin-bottom:10px; color:var(--red); font-weight:bold;">!</div>
                     <div>Failed to load spice data.</div>
                     <button onclick="fetchSpiceData(true)" style="margin-top:15px; background:var(--card-bg); border:1px solid var(--border); color:var(--text); padding:8px 16px; border-radius:4px; cursor:pointer;">Retry Request</button>
                 </div>`;
@@ -1234,7 +1235,7 @@ window.showSpiceDetail = async function (username) {
 
                     ${window.advancedMode ? `
                     <div style="margin-top:20px; padding:15px; background:rgba(255,105,180,0.05); border:1px solid rgba(255,105,180,0.2); border-radius:8px;">
-                        <h4 style="margin:0 0 10px; font-size:14px; color:var(--pink);">📊 Theoretical Maximum Spice</h4>
+                        <h4 style="margin:0 0 10px; font-size:14px; color:var(--pink);">Theoretical Maximum Spice</h4>
                         <div style="font-size:12px; color:var(--muted); line-height:1.6;">
                             <p style="margin:0 0 8px;">For a group with <strong style="color:var(--text);">${sub === 'All Songs' ? allPicks.length + ' songs' : sub}</strong>:</p>
                             <ul style="margin:5px 0; padding-left:20px;">
@@ -1978,7 +1979,7 @@ async function findMatches() {
     } catch (e) {
         console.error('Match finding error:', e);
         res.innerHTML = `<div class="card" style="border-color:var(--red); text-align:center; padding:30px;">
-                    <div style="font-size:48px; margin-bottom:10px;">⚠️</div>
+                    <div style="font-size:48px; margin-bottom:10px; color:var(--red); font-weight:bold;">!</div>
                     <div style="color:var(--red); font-weight:600; margin-bottom:10px;">Error Finding Matches</div>
                     <div style="font-size:12px; color:var(--muted);">The API endpoint may not be available. Please check the backend service.</div>
                 </div>`;
@@ -2032,7 +2033,7 @@ async function analyzeBias() {
                           style="padding:15px; border-color:${isTop ? 'var(--pink)' : 'var(--border)'}; cursor:pointer; transition:all 0.2s;"
                           onmouseover="this.style.transform='translateY(-3px)'; this.style.borderColor='var(--pink)'; this.style.boxShadow='0 4px 12px rgba(219,97,162,0.2)'"
                           onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='${isTop ? 'var(--pink)' : 'var(--border)'}'; this.style.boxShadow='none'">
-                        <div style="font-size:10px; opacity:0.7; text-transform:uppercase; letter-spacing:1px;">${isTop ? '🏆 OSHI' : 'Favored Member'}</div>
+                        <div style="font-size:10px; opacity:0.7; text-transform:uppercase; letter-spacing:1px;">${isTop ? 'OSHI' : 'Favored Member'}</div>
                         <div style="font-size:16px; font-weight:bold; color:#fff; margin:5px 0;">${b.name}</div>
                         <div style="font-size:24px; font-weight:900; color:${biasColor}">
                             ${b.bias > 0 ? '+' : ''}${b.bias}
@@ -2109,8 +2110,704 @@ window.showMemberBiasDetail = function (index) {
             `;
 };
 
+// --- OSHI MODE SWITCHING ---
+window.currentOshiMode = 'user';
+
+window.switchOshiMode = function (mode) {
+    window.currentOshiMode = mode;
+
+    const userBtn = document.getElementById('oshi-mode-user');
+    const artistBtn = document.getElementById('oshi-mode-artist');
+    const userControls = document.getElementById('oshi-user-controls');
+    const artistControls = document.getElementById('oshi-artist-controls');
+    const modeDesc = document.getElementById('oshi-mode-desc');
+    const results = document.getElementById('bias-results');
+
+    if (mode === 'user') {
+        userBtn.style.background = 'var(--pink)';
+        userBtn.style.borderColor = 'var(--pink)';
+        userBtn.style.color = '#fff';
+        userBtn.style.fontWeight = 'bold';
+        artistBtn.style.background = 'var(--card)';
+        artistBtn.style.borderColor = 'var(--border)';
+        artistBtn.style.color = 'var(--muted)';
+        artistBtn.style.fontWeight = 'normal';
+
+        userControls.style.display = 'flex';
+        artistControls.style.display = 'none';
+        modeDesc.innerHTML = 'Who do you <i>really</i> love the most?';
+        results.innerHTML = '';
+
+        // Re-run user analysis if a user is selected
+        const user = document.getElementById('bias-user').value;
+        if (user) analyzeBias();
+    } else {
+        artistBtn.style.background = 'var(--pink)';
+        artistBtn.style.borderColor = 'var(--pink)';
+        artistBtn.style.color = '#fff';
+        artistBtn.style.fontWeight = 'bold';
+        userBtn.style.background = 'var(--card)';
+        userBtn.style.borderColor = 'var(--border)';
+        userBtn.style.color = 'var(--muted)';
+        userBtn.style.fontWeight = 'normal';
+
+        userControls.style.display = 'none';
+        artistControls.style.display = 'flex';
+        modeDesc.innerHTML = 'Who are the biggest fans of each artist?';
+        results.innerHTML = '';
+
+        // Populate artist dropdown from existing bias data
+        populateArtistDropdown();
+    }
+};
+
+window.populateArtistDropdown = async function () {
+    const artistSelect = document.getElementById('bias-artist');
+    const f = document.getElementById('view-franchise').value;
+
+    // Try to use cached bias data first
+    if (window.lastBiasData && window.lastBiasData.length > 0) {
+        artistSelect.innerHTML = window.lastBiasData.map(b => `<option value="${b.char_id}">${b.name}</option>`).join('');
+        artistSelect.selectedIndex = 0;
+        analyzeArtistFans();
+        return;
+    }
+
+    // Otherwise, fetch bias data for a sample user to get artist list
+    artistSelect.innerHTML = '<option value="">Loading artists...</option>';
+
+    try {
+        const userSel = document.getElementById('bias-user');
+        if (!userSel.value && userSel.options.length > 0) {
+            userSel.selectedIndex = 0;
+        }
+        const u = userSel.value;
+        if (!u) {
+            artistSelect.innerHTML = '<option value="">No users available</option>';
+            return;
+        }
+
+        const r = await fetch(`${API}/analysis/oshi-bias?franchise=${f}&user=${u}`);
+        const d = await r.json();
+
+        if (d.biases && d.biases.length > 0) {
+            window.lastBiasData = d.biases;
+            artistSelect.innerHTML = d.biases.map(b => `<option value="${b.char_id}">${b.name}</option>`).join('');
+            artistSelect.selectedIndex = 0;
+            analyzeArtistFans();
+        } else {
+            artistSelect.innerHTML = '<option value="">No artists found</option>';
+        }
+    } catch (e) {
+        console.error("Error loading artists:", e);
+        artistSelect.innerHTML = '<option value="">Error loading artists</option>';
+    }
+};
+
+window.lastArtistFansData = null;
+
+window.analyzeArtistFans = async function () {
+    const artistId = document.getElementById('bias-artist').value;
+    if (!artistId) return;
+
+    const f = document.getElementById('view-franchise').value;
+    const res = document.getElementById('bias-results');
+    const info = document.getElementById('artist-info');
+
+    res.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">Loading fan leaderboard...</div>';
+
+    try {
+        const r = await fetch(`${API}/analysis/oshi-fans?franchise=${f}&artist=${artistId}`);
+        const d = await r.json();
+
+        if (d.error) {
+            res.innerHTML = `<div style="text-align:center; color:var(--red);">${d.error}</div>`;
+            return;
+        }
+
+        window.lastArtistFansData = d;
+        info.innerHTML = `${d.song_count} solo songs analyzed`;
+
+        if (!d.fans || d.fans.length === 0) {
+            res.innerHTML = '<div style="text-align:center; color:var(--muted);">No fans found.</div>';
+            return;
+        }
+
+        let html = '';
+        d.fans.forEach((fan, i) => {
+            const isTop = i < 3;
+            const biasColor = fan.bias > 0 ? (i === 0 ? 'var(--pink)' : 'var(--green)') : 'var(--red)';
+            const medal = i === 0 ? '#1' : (i === 1 ? '#2' : (i === 2 ? '#3' : ''));
+            const borderColor = isTop ? 'var(--pink)' : 'var(--border)';
+
+            html += '<div class="stat-card" onclick="showFanDetail(' + i + ')" ' +
+                'style="padding:15px; border-color:' + borderColor + '; cursor:pointer; transition:all 0.2s;" ' +
+                'onmouseover="this.style.transform=\'translateY(-3px)\'; this.style.borderColor=\'var(--pink)\'" ' +
+                'onmouseout="this.style.transform=\'translateY(0)\'; this.style.borderColor=\'' + borderColor + '\'">' +
+                '<div style="font-size:10px; opacity:0.7; text-transform:uppercase; letter-spacing:1px;">' +
+                medal + ' ' + (i === 0 ? 'BIGGEST FAN' : '#' + (i + 1)) +
+                '</div>' +
+                '<div style="font-size:16px; font-weight:bold; color:#fff; margin:5px 0;">' + fan.username + '</div>' +
+                '<div style="font-size:24px; font-weight:900; color:' + biasColor + '">' +
+                (fan.bias > 0 ? '+' : '') + fan.bias +
+                '</div>' +
+                '<div style="font-size:11px; opacity:0.5; margin-top:5px;">' +
+                'Avg Rank #' + fan.artist_avg + ' (' + fan.song_count + ' songs)' +
+                '</div>' +
+                '<div style="font-size:9px; color:var(--pink); margin-top:8px; opacity:0; transition:0.2s;" class="click-hint">Click for song list →</div>' +
+                '</div>';
+        });
+
+        res.innerHTML = html;
+    } catch (e) {
+        console.error(e);
+        res.innerHTML = '<div style="text-align:center; color:var(--red);">Error loading fan data.</div>';
+    }
+};
+
+window.showFanDetail = function (index) {
+    const data = window.lastArtistFansData;
+    if (!data || !data.fans || !data.fans[index]) return;
+
+    const fan = data.fans[index];
+    const modal = document.getElementById('song-modal');
+    const content = document.getElementById('song-modal-content');
+    const title = document.getElementById('song-modal-title');
+
+    title.textContent = fan.username + ' - ' + data.artist_name + ' Songs';
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+
+    const songsHtml = fan.songs ? fan.songs.map(s =>
+        '<tr><td style="padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.03);">' + s.name + '</td>' +
+        '<td style="padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.03); text-align:center; font-weight:bold; color:' +
+        (s.rank <= 10 ? 'var(--green)' : (s.rank > 50 ? 'var(--red)' : '#fff')) + '">#' + s.rank + '</td></tr>'
+    ).join('') : '<tr><td colspan="2">No song data</td></tr>';
+
+    content.innerHTML =
+        '<div style="margin-bottom:20px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">' +
+        '<div class="card" style="padding:12px; text-align:center; border-color:var(--pink);">' +
+        '<div style="font-size:10px; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Bias</div>' +
+        '<div style="font-size:20px; font-weight:900; color:var(--pink)">' + (fan.bias > 0 ? '+' : '') + fan.bias + '</div>' +
+        '</div>' +
+        '<div class="card" style="padding:12px; text-align:center;">' +
+        '<div style="font-size:10px; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Average Rank</div>' +
+        '<div style="font-size:20px; font-weight:900;">#' + fan.artist_avg + '</div>' +
+        '</div>' +
+        '</div>' +
+        '<div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">' +
+        '<h4 style="font-size:14px; color:var(--pink);">' + data.artist_name + ' Songs</h4>' +
+        '<span style="font-size:11px; color:var(--muted);">' + fan.song_count + ' songs ranked</span>' +
+        '</div>' +
+        '<div style="max-height:350px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:rgba(0,0,0,0.2);">' +
+        '<table style="width:100%; font-size:12px; border-collapse:collapse;">' +
+        '<thead><tr style="background:rgba(255,255,255,0.05); text-align:left;">' +
+        '<th style="padding:10px; border-bottom:1px solid var(--border);">Song Title</th>' +
+        '<th style="padding:10px; border-bottom:1px solid var(--border); text-align:center;">Rank</th>' +
+        '</tr></thead>' +
+        '<tbody>' + songsHtml + '</tbody>' +
+        '</table>' +
+        '</div>' +
+        '<div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.03); border-radius:6px; font-size:11px; color:var(--muted); line-height:1.4;">' +
+        '<strong>About Bias:</strong> A positive score means ' + fan.username + ' ranks ' + data.artist_name + '\'s songs <strong>better</strong> than their global average of <strong>' + fan.global_avg + '</strong>.' +
+        '</div>';
+};
+
+
+/* --- RELEASE TRENDS --- */
+
+window.lastTrendsData = null;
+
+async function fetchTrendsData() {
+    const viewSelect = document.getElementById('view-subgroup');
+    const selectedSubgroup = viewSelect ? viewSelect.value : 'All Songs';
+
+    try {
+        const res = await fetch(`${API_BASE}/analysis/trends?franchise=${CURRENT_FRANCHISE}&subgroup=${encodeURIComponent(selectedSubgroup)}`);
+        if (!res.ok) throw new Error('Failed to fetch trends');
+        window.lastTrendsData = await res.json();
+        renderTrends(window.lastTrendsData);
+    } catch (e) {
+        console.error('Trends fetch error:', e);
+        document.getElementById('trends-yearly-chart').innerHTML = `<div style="text-align:center;color:var(--red);padding:20px;">
+            Failed to load trends data.<br>
+            <span style="font-size:11px;color:var(--muted)">${e.message}</span>
+        </div>`;
+    }
+}
+
+function renderTrends(data) {
+    renderYearlyChart(data.yearly_trends);
+    renderTimelineScatter(data.timeline);
+}
+
+
+function showYearlySongs(year) {
+    if (!window.lastTrendsData || !window.lastTrendsData.timeline) return;
+
+    // Filter songs for this year
+    const songs = window.lastTrendsData.timeline
+        .filter(t => new Date(t.date).getFullYear() === year)
+        .sort((a, b) => a.rank - b.rank); // Sort by rank (best first)
+
+    if (songs.length === 0) return;
+
+    const modal = document.getElementById('song-modal');
+    const content = document.getElementById('song-modal-content');
+    document.getElementById('song-modal-title').textContent = `Songs Released in ${year}`;
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+
+    content.innerHTML = `
+        <div style="margin-bottom:15px; color:var(--muted); font-size:12px;">
+            Found ${songs.length} songs. Click to see detailed distribution.
+        </div>
+        <div style="max-height:400px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead style="background:rgba(255,255,255,0.05); position:sticky; top:0;">
+                    <tr>
+                        <th style="padding:10px; text-align:left; font-size:11px; color:var(--muted); text-transform:uppercase;">Rank</th>
+                        <th style="padding:10px; text-align:left; font-size:11px; color:var(--muted); text-transform:uppercase;">Song</th>
+                        <th style="padding:10px; text-align:right; font-size:11px; color:var(--muted); text-transform:uppercase;">Released</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${songs.map(s => `
+                        <tr onclick="showSongDistribution('${s.title.replace(/'/g, "\\'")}')" 
+                            style="cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.03);"
+                            onmouseover="this.style.background='rgba(255,255,255,0.05)'" 
+                            onmouseout="this.style.background='transparent'">
+                            <td style="padding:10px; font-weight:bold; color:${s.rank <= 10 ? 'var(--green)' : s.rank > 50 ? 'var(--red)' : '#fff'}">#${s.rank}</td>
+                            <td style="padding:10px;">${s.title}</td>
+                            <td style="padding:10px; text-align:right; color:var(--muted); font-family:monospace;">${s.date}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderYearlyChart(yearly) {
+    const container = document.getElementById('trends-yearly-chart');
+    if (!yearly || yearly.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;">No yearly data available</div>';
+        return;
+    }
+
+    // Add some container styling for separation
+    container.style.background = 'rgba(0,0,0,0.2)';
+    container.style.borderRadius = '12px';
+    container.style.padding = '15px';
+    container.style.border = '1px solid var(--border)';
+
+    const w = container.clientWidth || 600; // Adjust for padding
+    const h = (container.clientHeight || 200);
+    const pad = { t: 30, r: 40, b: 40, l: 50 };
+
+    const years = yearly.map(d => d.year);
+    const ranks = yearly.map(d => d.avg_rank);
+
+    const minYear = Math.min(...years);
+    const maxYear = Math.max(...years);
+    const maxRank = Math.max(...ranks);
+    const minRank = Math.min(...ranks);
+
+    // Add 5% buffer to Y-axis for visuals
+    const yBuffer = (maxRank - minRank) * 0.05;
+
+    // Safe scaling for single year/rank
+    const yearRange = maxYear - minYear || 1;
+    const rankRange = (maxRank + yBuffer) - (minRank - yBuffer) || 1;
+
+    const xScale = (year) => {
+        if (maxYear === minYear) return w / 2; // Center if single year
+        return pad.l + ((year - minYear) / yearRange) * (w - pad.l - pad.r);
+    };
+    const yScale = (rank) => {
+        if (maxRank === minRank) return h / 2; // Center if single rank
+        return pad.t + ((rank - (minRank - yBuffer)) / rankRange) * (h - pad.t - pad.b);
+    };
+
+    // Build SVG
+    let svg = `<svg width="${w}" height="${h}" style="font-family:inherit; overflow:visible;">`;
+
+    // Title
+    svg += `<text x="${w / 2}" y="15" fill="var(--muted)" font-size="11" text-anchor="middle" font-weight="600" letter-spacing="1px" text-transform="uppercase">Average Song Rank by Release Year</text>`;
+
+    // Y-axis label
+    svg += `<text x="15" y="${h / 2}" fill="var(--muted)" font-size="10" transform="rotate(-90,15,${h / 2})" text-anchor="middle" letter-spacing="1px">AVG RANK</text>`;
+
+    // X-axis labels and grid lines
+    years.forEach(year => {
+        const x = xScale(year);
+        svg += `<text x="${x}" y="${h - 10}" fill="var(--muted)" font-size="11" font-weight="bold" text-anchor="middle">${year}</text>`;
+        svg += `<line x1="${x}" y1="${pad.t}" x2="${x}" y2="${h - pad.b}" stroke="rgba(255,255,255,0.05)" stroke-dasharray="4" />`;
+    });
+
+    // Draw Y-Axis Grid (every 10 ranks or so)
+    const yStep = Math.ceil((maxRank - minRank) / 5) || 1;
+    for (let r = Math.floor(minRank); r <= maxRank; r += yStep) {
+        const y = yScale(r);
+        svg += `<text x="${pad.l - 10}" y="${y + 3}" fill="var(--muted)" font-size="9" text-anchor="end">#${r}</text>`;
+        svg += `<line x1="${pad.l}" y1="${y}" x2="${w - pad.r}" y2="${y}" stroke="rgba(255,255,255,0.05)" />`;
+    }
+
+    // Line path
+    let pathD = '';
+    yearly.forEach((d, i) => {
+        const x = xScale(d.year);
+        const y = yScale(d.avg_rank);
+        pathD += (i === 0 ? 'M' : 'L') + `${x},${y} `;
+    });
+    // Add Drop Shadow to line
+    svg += `<defs>
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+    </defs>`;
+    svg += `<path d="${pathD}" fill="none" stroke="var(--pink)" stroke-width="3" filter="url(#glow)" />`;
+
+    // Points with tooltips and CLICK handlers
+    yearly.forEach((d, i) => {
+        const x = xScale(d.year);
+        const y = yScale(d.avg_rank);
+
+        // Large transparent target for easier clicking
+        svg += `<circle cx="${x}" cy="${y}" r="15" fill="transparent" 
+                   style="cursor:pointer"
+                   onclick="showYearlySongs(${d.year})">
+                   <title>Click to view songs from ${d.year}</title>
+                </circle>`;
+
+        // Visible dot
+        svg += `<circle cx="${x}" cy="${y}" r="6" fill="#1e1e1e" stroke="var(--pink)" stroke-width="2" 
+                   style="cursor:pointer; transition: all 0.2s;"
+                   onmouseover="this.setAttribute('r', 9); this.setAttribute('fill', 'var(--pink)')"
+                   onmouseout="this.setAttribute('r', 6); this.setAttribute('fill', '#1e1e1e')"
+                   onclick="showYearlySongs(${d.year})">
+        </circle>`;
+
+        // Label above dot
+        svg += `<text x="${x}" y="${y - 12}" fill="#fff" font-size="11" font-weight="bold" text-anchor="middle" style="pointer-events:none; text-shadow:0 2px 4px rgba(0,0,0,0.8);">#${d.avg_rank.toFixed(1)}</text>`;
+    });
+
+    svg += '</svg>';
+    container.innerHTML = svg;
+}
+
+
+function renderTimelineScatter(timeline) {
+    const container = document.getElementById('trends-timeline');
+    if (!timeline || timeline.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;">No timeline data available</div>';
+        return;
+    }
+
+    const w = container.clientWidth || 800;
+    const h = container.clientHeight || 400;
+    const pad = { t: 40, r: 30, b: 50, l: 50 };
+
+    // Parse dates
+    const points = timeline.map(t => ({
+        ...t,
+        dateObj: new Date(t.date),
+        dateMs: new Date(t.date).getTime()
+    }));
+
+    const minDate = Math.min(...points.map(p => p.dateMs));
+    const maxDate = Math.max(...points.map(p => p.dateMs));
+    const maxRank = Math.max(...points.map(p => p.rank));
+    const minRank = Math.min(...points.map(p => p.rank));
+
+    // Add buffer
+    const dateBuffer = (maxDate - minDate) * 0.02;
+    const rankBuffer = (maxRank - minRank) * 0.05;
+
+    const dateRange = (maxDate + dateBuffer) - (minDate - dateBuffer);
+    const rankRange = (maxRank + rankBuffer) - (minRank - rankBuffer);
+
+    const xScale = (dateMs) => {
+        if (dateRange <= 0) return w / 2;
+        return pad.l + ((dateMs - (minDate - dateBuffer)) / dateRange) * (w - pad.l - pad.r);
+    };
+    const yScale = (rank) => {
+        if (rankRange <= 0) return h / 2;
+        return pad.t + ((rank - (minRank - rankBuffer)) / rankRange) * (h - pad.t - pad.b);
+    };
+
+    // Create canvas
+    container.innerHTML = `<canvas id="trends-canvas" width="${w}" height="${h}" style="display:block; background:rgba(0,0,0,0.2); border:1px solid var(--border); border-radius:12px;"></canvas>
+        <div id="trends-tooltip" style="position:absolute;display:none;background:rgba(0,0,0,0.9);border:1px solid var(--pink);padding:8px 12px;font-size:11px;pointer-events:none;border-radius:6px;z-index:100;max-width:200px;box-shadow:0 4px 12px rgba(0,0,0,0.5);"></div>
+        
+        <!-- Legend for Controversy Colors -->
+        <div style="position:absolute; bottom:15px; left:60px; display:flex; gap:15px; background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:4px; font-size:10px; color:rgba(255,255,255,0.7); pointer-events:none;">
+            <div style="display:flex; align-items:center; gap:4px;"><div style="width:6px; height:6px; border-radius:50%; background:#22d3ee;"></div>Consensus</div>
+            <div style="display:flex; align-items:center; gap:4px;"><div style="width:6px; height:6px; border-radius:50%; background:#a855f7;"></div>Agreed</div>
+            <div style="display:flex; align-items:center; gap:4px;"><div style="width:6px; height:6px; border-radius:50%; background:#f472b6;"></div>Controversial</div>
+            <div style="display:flex; align-items:center; gap:4px;"><div style="width:6px; height:6px; border-radius:50%; background:#f87171;"></div>War Zone</div>
+        </div>
+        `;
+
+    const canvas = document.getElementById('trends-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.clearRect(0, 0, w, h);
+
+    // Grid lines and Axis
+    ctx.lineWidth = 1;
+
+    // Y-axis markers
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'right';
+
+    // Y-Axis Title
+    ctx.save();
+    ctx.translate(15, h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'var(--muted)';
+    ctx.fillText("SONG RANK (Lower is Better)", 0, 0);
+    ctx.restore();
+
+    const rankStep = Math.ceil((maxRank - minRank) / 5);
+    for (let r = Math.floor(minRank); r <= maxRank; r += rankStep || 10) {
+        const y = yScale(r);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillText('#' + Math.round(r), pad.l - 10, y + 3);
+
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.moveTo(pad.l, y);
+        ctx.lineTo(w - pad.r, y);
+        ctx.stroke();
+    }
+
+    // X-axis year markers
+    const startYear = new Date(minDate).getFullYear();
+    const endYear = new Date(maxDate).getFullYear();
+
+    ctx.textAlign = 'center';
+    for (let yr = startYear; yr <= endYear; yr++) {
+        const dateMs = new Date(yr, 0, 1).getTime();
+        if (dateMs >= minDate && dateMs <= maxDate) {
+            const x = xScale(dateMs);
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.fillText(yr.toString(), x, h - 15);
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.setLineDash([4, 4]); // Dashed lines for years
+            ctx.moveTo(x, pad.t);
+            ctx.lineTo(x, h - pad.b);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    }
+
+    // Draw points
+    const pointData = [];
+    points.forEach(p => {
+        const x = xScale(p.dateMs);
+        const y = yScale(p.rank);
+        pointData.push({ x, y, title: p.title, rank: p.rank, date: p.date, color: p.color, label: p.label, controversy: p.controversy });
+
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.stroke();
+    });
+
+    // Hover handling
+    const tooltip = document.getElementById('trends-tooltip');
+
+    canvas.onmousemove = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        let closest = null;
+        let minDist = 20;
+
+        pointData.forEach(p => {
+            const dist = Math.sqrt((mx - p.x) ** 2 + (my - p.y) ** 2);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = p;
+            }
+        });
+
+        if (closest) {
+            tooltip.style.display = 'block';
+            tooltip.style.left = (mx + 15) + 'px';
+            tooltip.style.top = (my - 35) + 'px';
+            tooltip.innerHTML = `<div style="font-weight:bold; color:#fff; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:4px; margin-bottom:4px;">${closest.title}</div>
+                <div style="font-size:10px; color:var(--muted); display:flex; justify-content:space-between; margin-bottom:2px;">
+                    <span>Rank: <b style="color:#fff">#${closest.rank}</b></span>
+                    <span>${closest.date}</span>
+                </div>
+                 <div style="font-size:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:var(--muted)">Div:</span>
+                    <span style="color:${closest.color}; font-weight:bold;">${closest.label || 'Unknown'} (σ=${closest.controversy || '?'})</span>
+                </div>`;
+            canvas.style.cursor = 'pointer';
+
+            // Highlight point
+            ctx.clearRect(0, 0, w, h);
+            // Redraw Grid
+            // (Simplified: just redraw everything for now, ideally optimize to using save/restore/layers if slow)
+            // Re-render base scene
+            renderBaseScene(ctx, w, h, pad, minRank, maxRank, yScale, startYear, endYear, minDate, maxDate, xScale);
+
+            // Draw all points normal
+            points.forEach(p => {
+                const px = xScale(p.dateMs);
+                const py = yScale(p.rank);
+                ctx.beginPath();
+                ctx.arc(px, py, 4, 0, Math.PI * 2);
+                ctx.fillStyle = p.color; // Fade others?
+                ctx.globalAlpha = 0.3;
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+
+            // Draw highlighted point
+            ctx.beginPath();
+            ctx.arc(closest.x, closest.y, 8, 0, Math.PI * 2);
+            ctx.fillStyle = closest.color;
+            ctx.shadowColor = closest.color;
+            ctx.shadowBlur = 15;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+        } else {
+            tooltip.style.display = 'none';
+            canvas.style.cursor = 'default';
+
+            // Restore normal view
+            ctx.clearRect(0, 0, w, h);
+            renderBaseScene(ctx, w, h, pad, minRank, maxRank, yScale, startYear, endYear, minDate, maxDate, xScale);
+            points.forEach(p => {
+                const px = xScale(p.dateMs);
+                const py = yScale(p.rank);
+                ctx.beginPath();
+                ctx.arc(px, py, 4, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+        }
+    };
+
+    canvas.onclick = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        let closest = null;
+        let minDist = 20;
+
+        pointData.forEach(p => {
+            const dist = Math.sqrt((mx - p.x) ** 2 + (my - p.y) ** 2);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = p;
+            }
+        });
+
+        if (closest) {
+            showSongDistribution(closest.title);
+        }
+    };
+
+    canvas.onmouseleave = () => {
+        tooltip.style.display = 'none';
+        canvas.style.cursor = 'default';
+        // Restore
+        ctx.clearRect(0, 0, w, h);
+        renderBaseScene(ctx, w, h, pad, minRank, maxRank, yScale, startYear, endYear, minDate, maxDate, xScale);
+        points.forEach(p => {
+            const px = xScale(p.dateMs);
+            const py = yScale(p.rank);
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+    };
+
+    // Helper to redraw static parts
+    function renderBaseScene(ctx, w, h, pad, minRank, maxRank, yScale, startYear, endYear, minDate, maxDate, xScale) {
+        // Y-axis markers
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.lineWidth = 1;
+
+        // Y-Axis Title
+        ctx.save();
+        ctx.translate(15, h / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'var(--muted)';
+        ctx.fillText("SONG RANK (Lower is Better)", 0, 0);
+        ctx.restore();
+
+        const rankStep = Math.ceil((maxRank - minRank) / 5);
+        for (let r = Math.floor(minRank); r <= maxRank; r += rankStep || 10) {
+            const y = yScale(r);
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.fillText('#' + Math.round(r), pad.l - 10, y + 3);
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.moveTo(pad.l, y);
+            ctx.lineTo(w - pad.r, y);
+            ctx.stroke();
+        }
+
+        // X-axis year markers
+        ctx.textAlign = 'center';
+        for (let yr = startYear; yr <= endYear; yr++) {
+            const dateMs = new Date(yr, 0, 1).getTime();
+            if (dateMs >= minDate && dateMs <= maxDate) {
+                const x = xScale(dateMs);
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.fillText(yr.toString(), x, h - 15);
+
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+                ctx.setLineDash([4, 4]); // Dashed lines for years
+                ctx.moveTo(x, pad.t);
+                ctx.lineTo(x, h - pad.b);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+    }
+}
+
 
 /* --- CONSTELLATION GRAPH --- */
+
 var graphCtx = null, graphNodes = [], graphEdges = [], graphAnimParams = { w: 0, h: 0 };
 var graphHover = null, graphDrag = null, graphMouse = { x: 0, y: 0 };
 
@@ -2226,7 +2923,7 @@ function initConstellation(data) {
     });
     const maxDist = Math.sqrt(maxX * maxX + maxY * maxY); // For theoMax comparison
 
-    // Calculate Theoretical Max Radius
+    // Calculate Theoretical Max Radius (Max RMS Distance / Diameter)
     const N = Object.keys(songNames).length;
     const theoMax = N > 1 ? Math.sqrt((Math.pow(N, 2) - 1) / 3) : 0;
     console.log("DEBUG initConstellation: N=", N, "theoMax=", theoMax, "maxX=", maxX, "maxY=", maxY);
@@ -2264,7 +2961,7 @@ function initConstellation(data) {
         realY: coords[i].y * scale,
         realZ: coords[i].z * scale,
 
-        color: `hsl(${280 + ((i * 40) % 80)}, 70%, 60%)`,
+        color: '#db61a2',
         initials: u.substring(0, 2).toUpperCase(),
         pc1: coords[i].x, // Store raw PC coords for loading calc
         pc2: coords[i].y,
@@ -2350,7 +3047,9 @@ function initConstellation(data) {
     if (statPC1El) statPC1El.textContent = maxPC1.toFixed(3);
     if (statPC2El) statPC2El.textContent = maxPC2.toFixed(3);
     if (statMagEl) {
-        statMagEl.innerHTML = `<span style="color:#fff">${maxMag.toFixed(3)}</span> / <span style="color:var(--muted)">${(window.theoMax || 0).toFixed(3)}</span>`;
+        if (maxMag > 0) {
+            statMagEl.innerHTML = `<span style="color:#fff">${maxMag.toFixed(3)}</span> / <span style="color:var(--muted)">${(window.theoMax || 0).toFixed(3)}</span>`;
+        }
     }
 
     // Populate user rankings table
@@ -2358,7 +3057,7 @@ function initConstellation(data) {
     if (rankingsEl) {
         console.log("DEBUG: Found rankingsEl, updating HTML...");
         rankingsEl.innerHTML = `
-            <table style="width:100%; border-collapse:collapse;">
+                <table style="width:100%; border-collapse:collapse;">
                 <thead>
                     <tr style="border-bottom:1px solid var(--border); font-size:10px; color:var(--muted); text-transform:uppercase;">
                         <th style="text-align:left; padding:6px 4px;">User</th>
@@ -2390,7 +3089,7 @@ function initConstellation(data) {
                     `).join('')}
                 </tbody>
             </table>
-        `;
+                `;
     }
 
     // Global helper for showing details (now uses MODAL instead of alert)
@@ -2405,11 +3104,11 @@ function initConstellation(data) {
         const topSongs = data.slice(0, limit);
 
         content.innerHTML = `
-                    <div style="font-size:12px; color:var(--muted); margin-bottom:15px; text-align:center;">
-                        High magnitude Pearson correlation indicates a strong driver of this axis. Click any song for distribution.
-                    </div>
-                    <div style="max-height:60vh; overflow-y:auto; padding-right:5px;">
-                        ${topSongs.map((s, i) => `
+                <div style="font-size:12px; color:var(--muted); margin-bottom:15px; text-align:center;">
+                    High magnitude Pearson correlation indicates a strong driver of this axis. Click any song for distribution.
+                </div>
+                <div style="max-height:60vh; overflow-y:auto; padding-right:5px;">
+                    ${topSongs.map((s, i) => `
                             <div class="axis-item" onclick="showSongDistribution('${s.name.replace(/'/g, "\\'")}')">
                                 <div style="display:flex; align-items:center; gap:12px;">
                                     <span style="font-family:monospace; color:var(--muted); font-size:11px;">${(i + 1).toString().padStart(2, '0')}</span>
@@ -2420,8 +3119,8 @@ function initConstellation(data) {
                                 </div>
                             </div>
                         `).join('')}
-                    </div>
-                `;
+                </div>
+            `;
     };
 
     // Click Handler for Drill-Down
@@ -2462,7 +3161,7 @@ function initConstellation(data) {
         const content = document.getElementById('song-modal-content');
         const title = document.getElementById('song-modal-title');
 
-        title.textContent = `${node.id}'s Position Analysis`;
+        title.textContent = `${node.id} 's Position Analysis`;
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
 
@@ -2951,12 +3650,14 @@ function drawGraph() {
         }
     }
 
+
+
     // Draw Theoretical Limit Ring (dashed pink outer boundary)
     if (window.theoMax && window.theoMax > 0) {
         const limitRadius = window.theoMax * scale;
-        graphCtx.strokeStyle = 'rgba(219, 97, 162, 0.6)'; // Pink
+        graphCtx.strokeStyle = 'rgba(219, 97, 162, 0.4)'; // Pink
         graphCtx.setLineDash([8, 4]); // Dashed
-        graphCtx.lineWidth = 2.5;
+        graphCtx.lineWidth = 2;
         graphCtx.beginPath();
         graphCtx.arc(cx, cy, limitRadius, 0, Math.PI * 2);
         graphCtx.stroke();
@@ -2964,7 +3665,7 @@ function drawGraph() {
         graphCtx.lineWidth = 1;
 
         // Label for Theoretical Limit
-        graphCtx.fillStyle = 'rgba(219, 97, 162, 0.9)';
+        graphCtx.fillStyle = 'rgba(219, 97, 162, 0.7)';
         graphCtx.font = 'bold 11px Inter';
         graphCtx.textAlign = 'center';
         graphCtx.textBaseline = 'bottom';

@@ -795,6 +795,7 @@
             <div class="nav-item" id="btn-leader" onclick="tab('leader')">Rankings</div>
             <div class="nav-item" id="btn-tiers" onclick="tab('tiers')">Tiers</div>
             <div class="nav-item" id="btn-aff" onclick="tab('aff')">Affinity</div>
+            <div class="nav-item" id="btn-trends" onclick="tab('trends')">Trends</div>
             <div class="nav-item" id="btn-subranks" onclick="tab('subranks')">Subunits</div>
             <div class="nav-item" id="btn-more" onclick="tab('more')">Analysis</div>
             <div class="nav-item" id="btn-opps" onclick="tab('opps')">Divergence / Rivals</div>
@@ -835,7 +836,7 @@
                     <div class="stat-sub" id="d-agreed-score">Low Controversy</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">📊 Total Songs</div>
+                    <div class="stat-label">Total Songs</div>
                     <div class="stat-value" id="d-total-songs">--</div>
                     <div class="stat-sub">In current view</div>
                 </div>
@@ -880,6 +881,25 @@
                 <div id="song-modal-content" style="padding:25px; overflow-y:auto; flex:1;"></div>
             </div>
         </div>
+        </div>
+
+        <!-- VIEW: TRENDS -->
+        <div id="view-trends" class="hidden">
+            <div class="card" style="margin-bottom: 20px;">
+                <h3>📅 Release Trends</h3>
+                <p style="font-size:12px; color:var(--muted); margin-bottom:15px;">
+                    How do song rankings correlate with release dates? Do newer songs rank higher?
+                </p>
+                <div id="trends-yearly-chart" style="height:220px; position:relative; margin-bottom:20px;"></div>
+            </div>
+            <div class="card">
+                <h3>🎯 Song Timeline (Scatter Plot)</h3>
+                <p style="font-size:12px; color:var(--muted); margin-bottom:15px;">
+                    Each dot is a song. X = Release Date, Y = Average Rank. Hover to see song name. Vertical clusters =
+                    album releases.
+                </p>
+                <div id="trends-timeline" style="height:400px; position:relative; overflow:hidden;"></div>
+            </div>
         </div>
 
         <!-- VIEW: SUBUNIT RANKINGS -->
@@ -1134,13 +1154,40 @@
         <!-- VIEW: OSHI DETECTOR -->
         <div id="view-oshi" class="card hidden">
             <h3 style="border:none; margin-bottom:10px; text-align: center;">💖 Oshi Detector</h3>
-            <div style="font-size:12px; color:var(--muted); margin-bottom:15px; text-align: center;">Who do you
-                <i>really</i> love the most? (Based on average rank)
+            <div style="font-size:12px; color:var(--muted); margin-bottom:15px; text-align: center;">
+                <span id="oshi-mode-desc">Who do you <i>really</i> love the most?</span>
             </div>
-            <div style="display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:15px;">
+
+            <!-- Mode Toggle -->
+            <div style="display:flex; justify-content:center; gap:0; margin-bottom:15px;">
+                <button id="oshi-mode-user" onclick="switchOshiMode('user')"
+                    style="padding:8px 16px; background:var(--pink); border:1px solid var(--pink); color:#fff; border-radius:6px 0 0 6px; cursor:pointer; font-weight:bold;">
+                    👤 User View
+                </button>
+                <button id="oshi-mode-artist" onclick="switchOshiMode('artist')"
+                    style="padding:8px 16px; background:var(--card); border:1px solid var(--border); color:var(--muted); border-radius:0 6px 6px 0; cursor:pointer;">
+                    🎤 Artist View
+                </button>
+            </div>
+
+            <!-- User View Controls -->
+            <div id="oshi-user-controls"
+                style="display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:15px;">
                 <select id="bias-user" onchange="analyzeBias()"
                     style="width:200px; padding:10px; background:var(--card); border:1px solid var(--border); color:#fff; border-radius:6px;"></select>
             </div>
+
+            <!-- Artist View Controls (hidden by default) -->
+            <div id="oshi-artist-controls"
+                style="display:none; flex-direction:column; gap:10px; align-items:center; justify-content:center; margin-bottom:15px;">
+                <select id="bias-artist" onchange="analyzeArtistFans()"
+                    style="width:200px; padding:10px; background:var(--card); border:1px solid var(--border); color:#fff; border-radius:6px;">
+                    <option value="">Select an artist...</option>
+                </select>
+                <div id="artist-info" style="font-size:11px; color:var(--muted);"></div>
+            </div>
+
+            <!-- Results (shared container) -->
             <div id="bias-results" class="grid"
                 style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:15px;"></div>
         </div>
@@ -1206,8 +1253,10 @@
     <script>
         // Use var to avoid redeclaration errors if app.js also loads
         var API = "/api/v1";
+        var API_BASE = API; // Shim for app.js
         var activeTab = activeTab || 'dash';
         var allSubgroups = allSubgroups || [];
+        var CURRENT_FRANCHISE = document.getElementById('view-franchise') ? document.getElementById('view-franchise').value : 'liella';
 
         // Data cache to prevent redundant API calls
         var dataCache = dataCache || { key: '', ranks: null, cont: null, takes: null, spice: null, loaded: false };
@@ -1300,6 +1349,7 @@
         }
 
         function changeFranchiseView() {
+            CURRENT_FRANCHISE = document.getElementById('view-franchise').value;
             dataCache = { key: '', ranks: null, cont: null, takes: null, spice: null, loaded: false }; // Clear cache
             wipeUI();
             updateSubgroupDropdown();
@@ -1412,6 +1462,7 @@
             if (activeTab === 'tiers') renderTierStats(ranks.rankings, cont?.results || []);
             if (activeTab === 'aff') renderAffinity(ranks.rankings);
             if (activeTab === 'subranks') renderSubranks();
+            if (activeTab === 'trends') fetchTrendsData();
 
             // Render dashboard constellation when on dashboard tab
             if (activeTab === 'dash') {
@@ -1443,6 +1494,7 @@
             if (activeTab === 'subranks') renderSubranks();
             if (activeTab === 'spice' || activeTab === 'dash') fetchSpiceData();
             if (activeTab === 'constellation' || activeTab === 'oshi') fetchUserList();
+            if (activeTab === 'trends') fetchTrendsData();
         }
 
 
@@ -2030,7 +2082,7 @@
             } catch (e) {
                 console.error("Spice fetch error:", e);
                 if (el) el.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">
-                    <div style="font-size:24px; margin-bottom:10px;">⚠️</div>
+                    <div style="font-size:24px; margin-bottom:10px; color:var(--red); font-weight:bold;">!</div>
                     <div>Failed to load spice data.</div>
                     <button onclick="fetchSpiceData(true)" style="margin-top:15px; background:var(--card-bg); border:1px solid var(--border); color:var(--text); padding:8px 16px; border-radius:4px; cursor:pointer;">Retry Request</button>
                 </div>`;
@@ -2338,7 +2390,7 @@
 
                     ${window.advancedMode ? `
                     <div style="margin-top:20px; padding:15px; background:rgba(255,105,180,0.05); border:1px solid rgba(255,105,180,0.2); border-radius:8px;">
-                        <h4 style="margin:0 0 10px; font-size:14px; color:var(--pink);">📊 Theoretical Maximum Spice</h4>
+                        <h4 style="margin:0 0 10px; font-size:14px; color:var(--pink);">Theoretical Maximum Spice</h4>
                         <div style="font-size:12px; color:var(--muted); line-height:1.6;">
                             <p style="margin:0 0 8px;">For a group with <strong style="color:var(--text);">${sub === 'All Songs' ? allPicks.length + ' songs' : sub}</strong>:</p>
                             <ul style="margin:5px 0; padding-left:20px;">
@@ -3065,7 +3117,7 @@
             if (!currentSub || currentSub.toLowerCase().includes('all')) {
                 wrapAff.innerHTML = `
                     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:400px; text-align:center; color:var(--muted);">
-                        <div style="font-size:24px; margin-bottom:10px;">📊</div>
+                        <div style="font-size:24px; margin-bottom:10px; opacity:0.5;"></div>
                         <div style="font-size:16px; font-weight:bold; color:var(--text);">Select a Subgroup</div>
                         <div style="font-size:13px; max-width:300px; margin-top:5px;">Select a specific subgroup above to reveal their unique taste profile.</div>
                     </div>
@@ -3830,7 +3882,7 @@
             } catch (e) {
                 console.error('Match finding error:', e);
                 res.innerHTML = `<div class="card" style="border-color:var(--red); text-align:center; padding:30px;">
-                    <div style="font-size:48px; margin-bottom:10px;">⚠️</div>
+                    <div style="font-size:48px; margin-bottom:10px; color:var(--red); font-weight:bold;">!</div>
                     <div style="color:var(--red); font-weight:600; margin-bottom:10px;">Error Finding Matches</div>
                     <div style="font-size:12px; color:var(--muted);">The API endpoint may not be available. Please check the backend service.</div>
                 </div>`;
@@ -3985,7 +4037,7 @@
                 if (d > maxDist) maxDist = d;
             });
 
-            // Calculate Theoretical Max Radius
+            // Calculate Theoretical Max Radius (Max RMS Distance / Diameter)
             const N = Object.keys(songNames).length;
             const theoMax = N > 1 ? Math.sqrt((Math.pow(N, 2) - 1) / 3) : 0;
 
@@ -4107,7 +4159,7 @@
 
             if (statPC1El) statPC1El.textContent = maxPC1.toFixed(3);
             if (statPC2El) statPC2El.textContent = maxPC2.toFixed(3);
-            if (statMagEl) {
+            if (maxMag > 0) {
                 statMagEl.innerHTML = `<span style="color:#fff">${maxMag.toFixed(3)}</span> / <span style="color:var(--muted)">${(window.theoMax || 0).toFixed(3)}</span>`;
             }
 
@@ -4769,10 +4821,12 @@
                 }
             }
 
+
+
             // Draw Theoretical Limit Ring (dashed pink outer boundary)
             if (window.theoMax && window.theoMax > 0) {
                 const limitRadius = window.theoMax * scale;
-                graphCtx.strokeStyle = 'rgba(219, 97, 162, 0.5)'; // Pink
+                graphCtx.strokeStyle = 'rgba(219, 97, 162, 0.4)'; // Pink
                 graphCtx.setLineDash([6, 4]); // Dashed
                 graphCtx.lineWidth = 2;
                 graphCtx.beginPath();
@@ -4782,7 +4836,7 @@
                 graphCtx.lineWidth = 1;
 
                 // Label for Theoretical Limit
-                graphCtx.fillStyle = 'rgba(219, 97, 162, 0.8)';
+                graphCtx.fillStyle = 'rgba(219, 97, 162, 0.7)';
                 graphCtx.font = 'bold 10px Inter';
                 graphCtx.textAlign = 'center';
                 graphCtx.textBaseline = 'bottom';

@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import (JSON, UUID, Boolean, Column, DateTime, Enum,
+from sqlalchemy import (JSON, UUID, Boolean, Column, Date, DateTime, Enum,
                         ForeignKey, Integer, String, UniqueConstraint, func)
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -38,6 +38,7 @@ class Song(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String)
     youtube_url = Column(String, nullable=True)
+    release_date = Column(Date, nullable=True)  # From song-info.json releasedOn
     franchise_id = Column(UUID(as_uuid=True), ForeignKey("franchises.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

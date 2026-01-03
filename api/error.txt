@@ -1,0 +1,917 @@
+﻿py : INFO:     Started server process [12
+472]
+発生場所 行:1 文字:1
++ py -m uvicorn app.main:app --host 127.0
+.0.1 --port 8000 2>&1 | Out-Fi ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecifi 
+   ed: (INFO:     Started server proces  
+  s [12472]:String) [], RemoteExceptio   
+ n
+    + FullyQualifiedErrorId : NativeComm 
+   andError
+ 
+INFO:     Waiting for application startup
+.
+2026-01-03 23:34:06 - app.main - INFO - S
+tarting application...
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\logging\__init_
+_.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp932' codec can't e
+ncode character '\u2713' in position 44: 
+illegal multibyte sequence
+Call stack:
+  File "<frozen runpy>", line 198, in _ru
+n_module_as_main
+  File "<frozen runpy>", line 88, in _run
+_code
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\__main__.py", line 4, in <module>
+    uvicorn.main()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 1406, in main
+    rv = self.invoke(ctx)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 1269, in invoke
+    return ctx.invoke(self.callback, **ct
+x.params)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\main.py", line 424, in main
+    run(
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\main.py", line 594, in run
+    server.run()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\server.py", line 67, in run
+    return asyncio_run(self.serve(sockets
+=sockets), loop_factory=self.config.get_l
+oop_factory())
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\runners
+.py", line 204, in run
+    return runner.run(main)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\runners
+.py", line 127, in run
+    return self._loop.run_until_complete(
+task)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\base_ev
+ents.py", line 706, in run_until_complete
+    self.run_forever()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\base_ev
+ents.py", line 677, in run_forever
+    self._run_once()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\base_ev
+ents.py", line 2046, in _run_once
+    handle._run()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\events.
+py", line 94, in _run
+    self._context.run(self._callback, *se
+lf._args)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\lifespan\on.py", line 86, in main
+    await app(scope, self.receive, self.s
+end)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\middleware\proxy_headers.py", line
+ 29, in __call__
+    return await self.app(scope, receive,
+ send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\applications.py", line 1135, in __
+call__
+    await super().__call__(scope, receive
+, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\applications.py", line 107, in _
+_call__
+    await self.middleware_stack(scope, re
+ceive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\errors.py", line 151,
+ in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\base.py", line 103, i
+n __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\cors.py", line 77, in
+ __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\exceptions.py", line 
+49, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\middleware\asyncexitstack.py", lin
+e 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\routing.py", line 716, in __call
+__
+    await self.middleware_stack(scope, re
+ceive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\routing.py", line 725, in app
+    await self.lifespan(scope, receive, s
+end)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\routing.py", line 694, in lifesp
+an
+    async with self.lifespan_context(app)
+ as maybe_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\.gemini\antigravit
+y\scratch\ll-rankings\api\app\main.py", l
+ine 32, in lifespan
+    database.init_engine()
+  File "C:\Users\trios\.gemini\antigravit
+y\scratch\ll-rankings\api\app\database.py
+", line 46, in init_engine
+    logger.info("\u2713 Database engine i
+nitialized successfully")
+Message: '\u2713 Database engine initiali
+zed successfully'
+Arguments: ()
+2026-01-03 23:34:06 - app.database - INFO
+ - \u2713 Database engine initialized suc
+cessfully
+2026-01-03 23:34:06 - app.database - INFO
+ - Creating database tables...
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\logging\__init_
+_.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp932' codec can't e
+ncode character '\u2713' in position 44: 
+illegal multibyte sequence
+Call stack:
+  File "<frozen runpy>", line 198, in _ru
+n_module_as_main
+  File "<frozen runpy>", line 88, in _run
+_code
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\__main__.py", line 4, in <module>
+    uvicorn.main()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 1406, in main
+    rv = self.invoke(ctx)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 1269, in invoke
+    return ctx.invoke(self.callback, **ct
+x.params)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\main.py", line 424, in main
+    run(
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\main.py", line 594, in run
+    server.run()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\server.py", line 67, in run
+    return asyncio_run(self.serve(sockets
+=sockets), loop_factory=self.config.get_l
+oop_factory())
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\runners
+.py", line 204, in run
+    return runner.run(main)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\runners
+.py", line 127, in run
+    return self._loop.run_until_complete(
+task)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\base_ev
+ents.py", line 706, in run_until_complete
+    self.run_forever()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\base_ev
+ents.py", line 677, in run_forever
+    self._run_once()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\base_ev
+ents.py", line 2046, in _run_once
+    handle._run()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\events.
+py", line 94, in _run
+    self._context.run(self._callback, *se
+lf._args)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\lifespan\on.py", line 86, in main
+    await app(scope, self.receive, self.s
+end)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\middleware\proxy_headers.py", line
+ 29, in __call__
+    return await self.app(scope, receive,
+ send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\applications.py", line 1135, in __
+call__
+    await super().__call__(scope, receive
+, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\applications.py", line 107, in _
+_call__
+    await self.middleware_stack(scope, re
+ceive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\errors.py", line 151,
+ in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\base.py", line 103, i
+n __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\cors.py", line 77, in
+ __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\exceptions.py", line 
+49, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\middleware\asyncexitstack.py", lin
+e 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\routing.py", line 716, in __call
+__
+    await self.middleware_stack(scope, re
+ceive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\routing.py", line 725, in app
+    await self.lifespan(scope, receive, s
+end)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\routing.py", line 694, in lifesp
+an
+    async with self.lifespan_context(app)
+ as maybe_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\.gemini\antigravit
+y\scratch\ll-rankings\api\app\main.py", l
+ine 33, in lifespan
+    database.init_db()
+  File "C:\Users\trios\.gemini\antigravit
+y\scratch\ll-rankings\api\app\database.py
+", line 88, in init_db
+    logger.info("\u2713 Database tables c
+reated/verified")
+Message: '\u2713 Database tables created/
+verified'
+Arguments: ()
+2026-01-03 23:34:06 - app.database - INFO
+ - \u2713 Database tables created/verifie
+d
+2026-01-03 23:34:06 - app.seeds.init - IN
+FO -   Franchise 'liella' already exists
+2026-01-03 23:34:06 - app.seeds.init - IN
+FO -   Franchise 'u's' already exists
+2026-01-03 23:34:06 - app.seeds.init - IN
+FO -   Franchise 'aqours' already exists
+2026-01-03 23:34:06 - app.seeds.init - IN
+FO -   Franchise 'nijigasaki' already exi
+sts
+2026-01-03 23:34:06 - app.seeds.init - IN
+FO -   Franchise 'hasunosora' already exi
+sts
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\logging\__init_
+_.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp932' codec can't e
+ncode character '\u2713' in position 46: 
+illegal multibyte sequence
+Call stack:
+  File "<frozen runpy>", line 198, in _ru
+n_module_as_main
+  File "<frozen runpy>", line 88, in _run
+_code
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\__main__.py", line 4, in <module>
+    uvicorn.main()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 1406, in main
+    rv = self.invoke(ctx)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 1269, in invoke
+    return ctx.invoke(self.callback, **ct
+x.params)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\c
+lick\core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\main.py", line 424, in main
+    run(
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\main.py", line 594, in run
+    server.run()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\server.py", line 67, in run
+    return asyncio_run(self.serve(sockets
+=sockets), loop_factory=self.config.get_l
+oop_factory())
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\runners
+.py", line 204, in run
+    return runner.run(main)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\runners
+.py", line 127, in run
+    return self._loop.run_until_complete(
+task)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\base_ev
+ents.py", line 706, in run_until_complete
+    self.run_forever()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\base_ev
+ents.py", line 677, in run_forever
+    self._run_once()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\base_ev
+ents.py", line 2046, in _run_once
+    handle._run()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\asyncio\events.
+py", line 94, in _run
+    self._context.run(self._callback, *se
+lf._args)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\lifespan\on.py", line 86, in main
+    await app(scope, self.receive, self.s
+end)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\u
+vicorn\middleware\proxy_headers.py", line
+ 29, in __call__
+    return await self.app(scope, receive,
+ send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\applications.py", line 1135, in __
+call__
+    await super().__call__(scope, receive
+, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\applications.py", line 107, in _
+_call__
+    await self.middleware_stack(scope, re
+ceive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\errors.py", line 151,
+ in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\base.py", line 103, i
+n __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\cors.py", line 77, in
+ __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\middleware\exceptions.py", line 
+49, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\middleware\asyncexitstack.py", lin
+e 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\routing.py", line 716, in __call
+__
+    await self.middleware_stack(scope, re
+ceive, send)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\routing.py", line 725, in app
+    await self.lifespan(scope, receive, s
+end)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\routing.py", line 694, in lifesp
+an
+    async with self.lifespan_context(app)
+ as maybe_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\trios\.gemini\antigravit
+y\scratch\ll-rankings\api\app\main.py", l
+ine 39, in lifespan
+    DatabaseSeeder.seed_franchises(db)
+  File "C:\Users\trios\.gemini\antigravit
+y\scratch\ll-rankings\api\app\seeds\init.
+py", line 136, in seed_franchises
+    logger.info(f"\u2713 Created {created
+} new franchises (total: {len(franchises)
+})")
+Message: '\u2713 Created 0 new franchises
+ (total: 5)'
+Arguments: ()
+2026-01-03 23:34:06 - app.seeds.init - IN
+FO - \u2713 Created 0 new franchises (tot
+al: 5)
+2026-01-03 23:34:06 - app.main - INFO - P
+rocessing startup sync for: liella
+2026-01-03 23:34:06 - app.main - ERROR - 
+Global seeding error: (sqlite3.Operationa
+lError) no such column: songs.release_dat
+e
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT songs.id AS songs_id, songs.
+name AS songs_name, songs.youtube_url AS 
+songs_youtube_url, songs.release_date AS 
+songs_release_date, songs.franchise_id AS
+ songs_franchise_id, songs.created_at AS 
+songs_created_at 
+FROM songs 
+WHERE songs.franchise_id = ?) AS anon_1]
+[parameters: ('68fad50ef80a4ab0ab0db49883
+1b6116',)]
+(Background on this error at: https://sql
+alche.me/e/20/e3q8)
+ERROR:    Traceback (most recent call las
+t):
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\engine\base.py", line 1967, in 
+_exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_
+parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\engine\default.py", line 952, i
+n do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such column:
+ songs.release_date
+
+The above exception was the direct cause 
+of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+tarlette\routing.py", line 694, in lifesp
+an
+    async with self.lifespan_context(app)
+ as maybe_state:
+               ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+               ~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+               ~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+               ~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\f
+astapi\routing.py", line 153, in merged_l
+ifespan
+    async with original_context(app) as m
+aybe_original_state:
+               ~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\contextlib.py",
+ line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\trios\.gemini\antigravit
+y\scratch\ll-rankings\api\app\main.py", l
+ine 53, in lifespan
+    song_count = db.query(Song).filter_by
+(franchise_id=f_obj.id).count()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\orm\query.py", line 3146, in co
+unt
+    self._legacy_from_self(col).enable_ea
+gerloads(False).scalar()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\orm\query.py", line 2835, in sc
+alar
+    ret = self.one()
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\orm\query.py", line 2808, in on
+e
+    return self._iter().one()  # type: ig
+nore
+           ~~~~~~~~~~^^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\orm\query.py", line 2857, in _i
+ter
+    result: Union[ScalarResult[_T], Resul
+t[_T]] = self.session.execute(
+                                         
+         ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_
+options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\orm\session.py", line 2351, in 
+execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\orm\session.py", line 2249, in 
+_execute_internal
+    result: Result[Any] = compile_state_c
+ls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\orm\context.py", line 306, in o
+rm_execute_statement
+    result = conn.execute(
+        statement, params or {}, executio
+n_options=execution_options
+    )
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\engine\base.py", line 1419, in 
+execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\sql\elements.py", line 527, in 
+_execute_on_connection
+    return connection._execute_clauseelem
+ent(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~^
+        self, distilled_params, execution
+_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^
+    )
+    ^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\engine\base.py", line 1641, in 
+_execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\engine\base.py", line 1846, in 
+_execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, para
+meters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^
+    )
+    ^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\engine\base.py", line 1986, in 
+_exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_param
+eters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\engine\base.py", line 2363, in 
+_handle_dbapi_exception
+    raise sqlalchemy_exception.with_trace
+back(exc_info[2]) from e
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\engine\base.py", line 1967, in 
+_exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_
+parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\trios\AppData\Local\Pyth
+on\pythoncore-3.14-64\Lib\site-packages\s
+qlalchemy\engine\default.py", line 952, i
+n do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (sqlite3
+.OperationalError) no such column: songs.
+release_date
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT songs.id AS songs_id, songs.
+name AS songs_name, songs.youtube_url AS 
+songs_youtube_url, songs.release_date AS 
+songs_release_date, songs.franchise_id AS
+ songs_franchise_id, songs.created_at AS 
+songs_created_at 
+FROM songs 
+WHERE songs.franchise_id = ?) AS anon_1]
+[parameters: ('68fad50ef80a4ab0ab0db49883
+1b6116',)]
+(Background on this error at: https://sql
+alche.me/e/20/e3q8)
+
+ERROR:    Application startup failed. Exi
+ting.
