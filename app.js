@@ -245,7 +245,7 @@ async function syncData(forceFetch = false) {
 
     // Render tabs that don't depend on specific subgroup rankings first
     if (activeTab === 'spice' || activeTab === 'dash') fetchSpiceData();
-    if (activeTab === 'oshi') fetchUserList();
+    if (activeTab === 'oshi') { fetchUserList(); fetchBiasUserList(true); }
     // Users already loaded above - no need to call again
 
 
@@ -266,7 +266,7 @@ async function syncData(forceFetch = false) {
     // Conditional rendering for active tabs to save DOM cycles
     if (activeTab === 'more') {
         renderUniversal(ranks.rankings, cont?.results || []); renderDisputed(takes?.takes || []);
-        renderSubunitPopularity(ranks.rankings, cont?.results || [], f); renderControversy(cont?.results || []);
+        renderControversy(cont?.results || []);
         renderConsistent(cont?.results || []); renderSleepers(takes?.takes || []);
         renderHaters(takes?.takes || []);
     }
@@ -299,7 +299,6 @@ function renderCurrentTab() {
     if (activeTab === 'more' && ranks?.rankings) {
         renderUniversal(ranks.rankings, cont?.results || []);
         renderDisputed(takes?.takes || []);
-        renderSubunitPopularity(ranks.rankings, cont?.results || [], f);
         renderControversy(cont?.results || []);
         renderConsistent(cont?.results || []);
         renderSleepers(takes?.takes || []);
@@ -676,32 +675,62 @@ function renderCompModal() {
 }
 
 function renderUniversal(ranks, controversy) {
-    const limit = getLimit(10, Math.floor(ranks.length / 2));
-    const top = ranks.slice(0, limit), btm = ranks.slice(-limit);
+    const limit = window.advancedMode ? ranks.length : 10;
+    const top = ranks.slice(0, limit);
+    const btm = window.advancedMode ? [] : ranks.slice(-limit);
+
     const mapAgreement = (songName) => {
         const c = controversy.find(x => x.song_name === songName);
         return c ? Math.max(0, 100 - ((c.cv * c.avg_rank) * 2.5)).toFixed(1) : "0.0";
     };
-    const rows = [...top, ...btm].map((s, i) => `<tr onclick="showSongDistribution('${s.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td class="col-rank" style="color:${i < limit ? 'var(--green)' : 'var(--red)'}">${i < limit ? 'TOP' : 'BTM'}</td><td>${s.song_name}</td><td class="col-metric" style="color:var(--pink)">${s.average}</td><td class="col-metric">${mapAgreement(s.song_name)}%</td></tr>`).join('');
+
+    const displayItems = window.advancedMode ? ranks : [...top, ...btm];
+    const rows = displayItems.map((s, i) => {
+        let type = i < limit ? 'TOP' : 'BTM';
+        let color = i < limit ? 'var(--green)' : 'var(--red)';
+        if (window.advancedMode) {
+            type = `#${i + 1}`;
+            color = i < ranks.length / 2 ? 'var(--green)' : 'var(--red)';
+        }
+        return `<tr onclick="showSongDistribution('${s.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td class="col-rank" style="color:${color}">${type}</td><td>${s.song_name}</td><td class="col-metric" style="color:var(--pink)">${s.average}</td><td class="col-metric">${mapAgreement(s.song_name)}%</td></tr>`;
+    }).join('');
+
     document.getElementById('c-universal').innerHTML = `<table><colgroup><col class="col-rank"><col><col class="col-metric"><col class="col-metric"></colgroup><thead><tr><th>Type</th><th>Song</th><th>Avg</th><th>Agr</th></tr></thead>${rows}</table>` +
         (!window.advancedMode && ranks.length > limit * 2 ? `<div style="padding:10px; text-align:center; font-size:11px; color:var(--muted); background:rgba(0,0,0,0.2); border-top:1px solid rgba(255,255,255,0.05);">Showing top/bottom ${limit} of ${ranks.length} songs. Enable Advanced Mode for full list.</div>` : '');
 }
 
 function renderDisputed(takes) {
-    const limit = getLimit(10, 50);
+    const limit = getLimit(10, 9999);
     const songGroups = {};
     takes.forEach(t => { if (!songGroups[t.song_name]) songGroups[t.song_name] = []; songGroups[t.song_name].push(t); });
+
     const res = Object.keys(songGroups).map(name => {
-        const g = songGroups[name].sort((a, b) => a.user_rank - b.user_rank);
-        return { name, fight: `${g[0].username} vs ${g[g.length - 1].username}`, diff: Math.abs(g[g.length - 1].user_rank - g[0].user_rank) };
+        const group = songGroups[name].sort((a, b) => a.user_rank - b.user_rank);
+        const minRank = group[0].user_rank;
+        const maxRank = group[group.length - 1].user_rank;
+        const diff = Math.abs(maxRank - minRank);
+
+        const highUsers = group.filter(t => t.user_rank === minRank).map(t => t.username);
+        const lowUsers = group.filter(t => t.user_rank === maxRank).map(t => t.username);
+
+        const distribution = `<span style="color:var(--text); font-weight:bold;">#${minRank}</span>: <span style="color:var(--muted)">${highUsers.join(', ')}</span> vs <span style="color:var(--text); font-weight:bold;">#${maxRank}</span>: <span style="color:var(--muted)">${lowUsers.join(', ')}</span>`;
+
+        return { name, distribution, diff };
     }).sort((a, b) => b.diff - a.diff);
 
-    const displayRes = res.slice(0, limit);
+    const limitToUse = Math.min(limit, res.length);
+    const displayRes = res.slice(0, limitToUse);
 
-    document.getElementById('c-disputed').innerHTML = `<table><colgroup><col><col class="col-fight"><col class="col-metric"></colgroup>` +
-        `<thead><tr><th style="text-align:left; padding-left:10px;">Song</th><th style="padding-left:10px;">Fight</th><th class="col-metric">Diff</th></tr></thead>` +
-        displayRes.map(r => `<tr onclick="showSongDistribution('${r.name.replace(/'/g, "\\'")}')" style="cursor:pointer" class="clickable-row"><td style="padding:4px 10px;">${r.name}</td><td class="col-fight" style="padding-left:10px;">${r.fight}</td><td class="col-metric" style="color:var(--pink); font-weight:bold;">${r.diff}</td></tr>`).join('') +
-        `</table>` +
+    let header = `<thead><tr><th style="text-align:left; padding-left:10px;">Song</th>`;
+    header += `<th style="padding-left:10px;">${window.advancedMode ? 'High vs Low' : 'Fight'}</th><th class="col-metric">Diff</th></tr></thead>`;
+
+    const rows = displayRes.map(r => {
+        let row = `<tr onclick="showSongDistribution('${r.name.replace(/'/g, "\\'")}')" style="cursor:pointer" class="clickable-row"><td style="padding:4px 10px;">${r.name}</td>`;
+        row += `<td style="padding-left:10px; font-size:${window.advancedMode ? '11px' : 'inherit'}; line-height:1.4;">${r.distribution}</td><td class="col-metric" style="color:var(--pink); font-weight:bold;">${r.diff}</td></tr>`;
+        return row;
+    }).join('');
+
+    document.getElementById('c-disputed').innerHTML = `<table><colgroup><col><col><col class="col-metric"></colgroup>${header}${rows}</table>` +
         (!window.advancedMode && res.length > limit ? `<div style="padding:10px; text-align:center; font-size:11px; color:var(--muted); background:rgba(0,0,0,0.2); border-top:1px solid rgba(255,255,255,0.05);">Showing top ${limit} of ${res.length} disputes. Enable Advanced Mode for full list.</div>` : '');
 }
 
@@ -818,31 +847,33 @@ function renderSubunitPopularity(rankings, controversy, franchise) {
 }
 
 function renderControversy(results) {
-    const limit = getLimit(10, results.length);
-    document.getElementById('c-controversy').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"></colgroup><tr><th>Song</th><th class="col-metric">Score</th><th class="col-metric">Div</th></tr>` + results.slice(0, limit).map(s => `<tr onclick="showSongDistribution('${s.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td>${s.song_name}</td><td class="col-metric" style="color:var(--pink)">${s.controversy_score}</td><td class="col-metric">${s.cv}</td></tr>`).join('') + `</table>` +
+    const limit = getLimit(10, 9999);
+    const limitToUse = Math.min(limit, results.length);
+    document.getElementById('c-controversy').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"></colgroup><tr><th>Song</th><th class="col-metric">Score</th><th class="col-metric">Div</th></tr>` + results.slice(0, limitToUse).map(s => `<tr onclick="showSongDistribution('${s.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td>${s.song_name}</td><td class="col-metric" style="color:var(--pink)">${s.controversy_score}</td><td class="col-metric">${s.cv}</td></tr>`).join('') + `</table>` +
         (!window.advancedMode && results.length > limit ? `<div style="padding:10px; text-align:center; font-size:11px; color:var(--muted); background:rgba(0,0,0,0.2); border-top:1px solid rgba(255,255,255,0.05);">Showing top ${limit} of ${results.length}. Enable Advanced Mode for full list.</div>` : '');
 }
 function renderConsistent(results) {
-    const limit = getLimit(10, results.length);
+    const limit = getLimit(10, 9999);
     const sorted = [...results].sort((a, b) => a.controversy_score - b.controversy_score);
-    document.getElementById('c-consistent').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"></colgroup><tr><th>Song</th><th class="col-metric">Score</th><th class="col-metric">Avg</th></tr>` + sorted.slice(0, limit).map(s => `<tr onclick="showSongDistribution('${s.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td>${s.song_name}</td><td class="col-metric" style="color:var(--pink)">${s.controversy_score}</td><td class="col-metric">${s.avg_rank}</td></tr>`).join('') + `</table>` +
+    const limitToUse = Math.min(limit, sorted.length);
+    document.getElementById('c-consistent').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"></colgroup><tr><th>Song</th><th class="col-metric">Score</th><th class="col-metric">Avg</th></tr>` + sorted.slice(0, limitToUse).map(s => `<tr onclick="showSongDistribution('${s.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td>${s.song_name}</td><td class="col-metric" style="color:var(--pink)">${s.controversy_score}</td><td class="col-metric">${s.avg_rank}</td></tr>`).join('') + `</table>` +
         (!window.advancedMode && sorted.length > limit ? `<div style="padding:10px; text-align:center; font-size:11px; color:var(--muted); background:rgba(0,0,0,0.2); border-top:1px solid rgba(255,255,255,0.05);">Showing top ${limit} of ${sorted.length}. Enable Advanced Mode for full list.</div>` : '');
 }
 function renderSleepers(takes) {
-    const limit = getLimit(10, 50);
+    const limit = getLimit(10, 9999);
     const allSleepers = takes.filter(t => t.score < -15);
-    const sleepers = allSleepers.slice(0, limit);
-    document.getElementById('c-sleeper').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"></colgroup><tr><th>Song</th><th class="col-metric">Lover</th><th class="col-metric">Gap</th></tr>` + sleepers.map(t => `<tr onclick="showSongDistribution('${t.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td>${t.song_name}</td><td class="col-metric">${t.username.substring(0, 8)}</td><td class="col-metric" style="color:var(--green)">${Math.abs(t.delta).toFixed(1)}</td></tr>`).join('') + `</table>` +
+    const sleepers = allSleepers.slice(0, Math.min(limit, allSleepers.length));
+    document.getElementById('c-sleeper').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"><col class="col-metric"></colgroup><tr><th>Song</th><th class="col-metric">Avg</th><th class="col-metric">Lover</th><th class="col-metric">Gap</th></tr>` + sleepers.map(t => `<tr onclick="showSongDistribution('${t.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td>${t.song_name}</td><td class="col-metric" style="color:var(--muted)">#${t.group_avg}</td><td class="col-metric">${t.username.substring(0, 8)} <span style="font-size:9px; opacity:0.7">#${t.user_rank}</span></td><td class="col-metric" style="color:var(--green)">${Math.abs(t.delta).toFixed(1)}</td></tr>`).join('') + `</table>` +
         (!window.advancedMode && allSleepers.length > limit ? `<div style="padding:10px; text-align:center; font-size:11px; color:var(--muted); background:rgba(0,0,0,0.2); border-top:1px solid rgba(255,255,255,0.05);">Showing top ${limit} of ${allSleepers.length} sleepers. Enable Advanced Mode for full list.</div>` : '');
 }
 function renderHaters(takes) {
-    const limit = getLimit(10, 50);
+    const limit = getLimit(10, 9999);
     const allHaters = takes.filter(t => t.score > 15);
-    const displayHaters = allHaters.slice(0, limit);
+    const displayHaters = allHaters.slice(0, Math.min(limit, allHaters.length));
 
-    document.getElementById('c-haters').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"></colgroup>` +
-        `<thead><tr><th style="padding-left:10px; text-align:left;">Song</th><th class="col-metric">Hater</th><th class="col-metric">Gap</th></tr></thead>` +
-        displayHaters.map(t => `<tr onclick="showSongDistribution('${t.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td style="padding:4px 10px;">${t.song_name}</td><td class="col-metric">${t.username.substring(0, 8)}</td><td class="col-metric" style="color:var(--red); font-weight:bold;">${Math.abs(t.delta).toFixed(1)}</td></tr>`).join('') +
+    document.getElementById('c-haters').innerHTML = `<table><colgroup><col><col class="col-metric"><col class="col-metric"><col class="col-metric"></colgroup>` +
+        `<thead><tr><th style="padding-left:10px; text-align:left;">Song</th><th class="col-metric">Avg</th><th class="col-metric">Hater</th><th class="col-metric">Gap</th></tr></thead>` +
+        displayHaters.map(t => `<tr onclick="showSongDistribution('${t.song_name.replace(/'/g, "\\'")}')" style="cursor:pointer;" class="clickable-row"><td style="padding:4px 10px;">${t.song_name}</td><td class="col-metric" style="color:var(--muted)">#${t.group_avg}</td><td class="col-metric">${t.username.substring(0, 8)} <span style="font-size:9px; opacity:0.7">#${t.user_rank}</span></td><td class="col-metric" style="color:var(--red); font-weight:bold;">${Math.abs(t.delta).toFixed(1)}</td></tr>`).join('') +
         `</table>` +
         (!window.advancedMode && allHaters.length > limit ? `<div style="padding:10px; text-align:center; font-size:11px; color:var(--muted); background:rgba(0,0,0,0.2); border-top:1px solid rgba(255,255,255,0.05);">Showing top ${limit} of ${allHaters.length} haters. Enable Advanced Mode for full list.</div>` : '');
 }
@@ -1762,7 +1793,8 @@ async function renderAffinity_OLD(subData) {
         }).filter(x => x).sort((a, b) => b.bias - a.bias);
 
         // Affinity List (Top 15 Bias)
-        const topAff = affinity.slice(0, 15);
+        const affLimit = getLimit(15, 9999);
+        const topAff = affinity.slice(0, Math.min(affLimit, affinity.length));
         wrapAff.innerHTML = `<table style="width:100%; font-size:13px;">
                     <tr style="text-align:left; color:var(--muted);"><th>Song</th><th>Group %</th><th>Global %</th><th>Bias</th></tr>
                     ${topAff.map(s => `
@@ -1904,8 +1936,8 @@ async function runDuel() {
         document.getElementById('duel-msg').innerHTML = sc > 85 ? "BEST FRIENDS FOREVER 💖" : sc > 60 ? "Solid Compatibility 👍" : sc < 30 ? "MORTAL ENEMIES 💀" : "It's Complicated 🤷";
 
         // Render Disputes
-        const limit = getLimit(10, data.diffs.length);
-        const disputes = data.diffs.slice(0, limit);
+        const limit = getLimit(10, 9999);
+        const disputes = data.diffs.slice(0, Math.min(limit, data.diffs.length));
         document.getElementById('duel-disputes').innerHTML = `<table>
                     <colgroup><col><col style="width:80px"><col style="width:80px"><col style="width:60px"></colgroup>
                     <tr><th>Song</th><th>${u1}</th><th>${u2}</th><th>Diff</th></tr>` +
