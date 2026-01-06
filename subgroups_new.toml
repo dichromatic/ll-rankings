@@ -1,0 +1,213 @@
+
+# --- Aqours Subunits ---
+
+[aqours.cyaron]
+name = "CYaRon!"
+is_custom = false
+is_subunit = true
+songs = [
+    "元気全開DAY! DAY! DAY!",
+    "夜空はなんでも知ってるの？",
+    "P.S.の向こう側",
+    "近未来ハッピーエンド",
+    "海岸通りで待ってるよ",
+    "サクラバイバイ",
+    "Braveheart Coaster",
+    "CHANGELESS",
+    "コドク・テレポート",
+    "Whistle of Revolution",
+    "ある日…永遠みたいに！",
+    "ドラゴンライダーズ"
+]
+
+[aqours.azalea]
+name = "AZALEA"
+is_custom = false
+is_subunit = true
+songs = [
+    "トリコリコPLEASE!!",
+    "ときめき分類学",
+    "LONELY TUNING",
+    "INNOCENT BIRD",
+    "GALAXY HidE and SeeK",
+    "卒業ですね",
+    "Amazing Travel DNA",
+    "空中恋愛論",
+    "メイズセカイ",
+    "We'll get the next dream!!!",
+    "PHOENIX DANCE",
+    "メタモルフィズム"
+]
+
+[aqours.guilty_kiss]
+name = "Guilty Kiss"
+is_custom = false
+is_subunit = true
+songs = [
+    "Strawberry Trapper",
+    "Guilty Night, Guilty Kiss!",
+    "Guilty Eyes Fever",
+    "コワレヤスキ",
+    "Shadow gate to love",
+    "Guilty!? Farewell party",
+    "New Romantic Sailors",
+    "Love Pulsar",
+    "Phantom Rocket Adventure",
+    "Shooting Star Warrior",
+    "Deep Sea Cocoon",
+    "Nameless Love Song"
+]
+
+[aqours.saint_snow]
+name = "Saint Snow"
+is_custom = false
+is_subunit = true
+songs = [
+    "SELF CONTROL!!",
+    "CRASH MIND",
+    "DROPOUT!?",
+    "Believe again",
+    "Over The Next Rainbow",
+    "Dazzling White Town",
+    "Lonely Snow Planet",
+    "After The Rain"
+]
+
+# --- Liella Member Solos & Rivals ---
+
+[liella.solos.kanon]
+name = "Kanon Solos"
+is_custom = false
+is_subunit = true
+songs = [
+    "青空を待ってる",
+    "Memories",
+    "Free Flight",
+    "Over Over",
+    "ほんのちょっぴり",
+    "心キラララ",
+    "Dreamer Coaster",
+    "Flower Garden",
+    "Primary" # Note: Primary is often credited to Liella but has solo versions. Including based on general solo categorization if strictly solo list needed. But based on user_rankings.csv, Primary is Liella. Removing from here to be safe unless explicitly solo version.
+    # user_rankings.csv says: "70. Primary - Liella!" so exclude Primary from solo.
+]
+# Re-verifying Kanon list: 
+# Free Flight, Over Over, Memories, ほんのちょっぴり, 青空を待ってる, 心キラララ, Dreamer Coaster (CSV: 124. Dreamer Coaster - 澁谷かのん). OK.
+
+[liella.solos.keke]
+name = "Keke Solos"
+is_custom = false
+is_subunit = true
+songs = [
+   "Oh！レディ・ステディ・ポジティブ",
+   "ファンダメンタル",
+   "Anniversary",
+   "星屑クルージング",
+   "水色のSunday",
+   "エンドレスサーキット"
+]
+
+[liella.solos.chisato]
+name = "Chisato Solos"
+is_custom = false
+is_subunit = true
+songs = [
+    "勇気のカケラ",
+    "Flyer's High",
+    "Ringing!",
+    "君を想う花になる",
+    "駆けるメリーゴーランド"
+]
+
+[liella.solos.sumire]
+name = "Sumire Solos"
+is_custom = false
+is_subunit = true
+songs = [
+    "ヒロインズ☆ランウェイ",
+    "みてろ！",
+    "Starry Prayer",
+    "Just woo!!",
+    "グソクムシのうた",
+    "Message"
+]
+
+[liella.solos.ren]
+name = "Ren Solos"
+is_custom = false
+is_subunit = true
+songs = [
+    "結び葉",
+    "微熱のワルツ",
+    "Dears",
+    "リバーブ",
+    "ミッドナイトラプソディ",
+    "迷宮讃歌"
+]
+
+[liella.solos.kinako]
+name = "Kinako Solos"
+is_custom = false
+is_subunit = true
+songs = [
+    "ビギナーズRock!!",
+    "あふれる言葉",
+    "てくてく日和"
+]
+
+[liella.solos.mei]
+name = "Mei Solos"
+is_custom = false
+is_subunit = true
+songs = [
+    "茜心",
+    "Sky Linker",
+    "パレードはいつも"
+]
+
+[liella.solos.shiki]
+name = "Shiki Solos"
+is_custom = false
+is_subunit = true
+songs = [
+    "ガラスボールリジェクション",
+    "LiLiA"
+]
+
+[liella.solos.natsumi]
+name = "Natsumi Solos"
+is_custom = false
+is_subunit = true
+songs = [
+    "Eyeをちょうだい",
+    "パステルコラージュ"
+]
+
+[liella.solos.wien]
+name = "Wien Solos"
+is_custom = false
+is_subunit = true
+songs = [
+    "エーデルシュタイン",
+    "ルカ",
+    "dolce",
+    "Butterfly Wing"
+]
+
+[liella.solos.tomari]
+name = "Tomari Solos"
+is_custom = false
+is_subunit = true
+songs = [
+    "ワイルドカード"
+    # Note: 11th moon is often duet. CSV: "11th moon - ウィーン・マルガレーテ、鬼塚冬毬". Not solo.
+]
+
+[liella.sunny_passion]
+name = "Sunny Passion"
+is_custom = false
+is_subunit = true
+songs = [
+    "HOT PASSION!!",
+    "Till Sunrise"
+]

@@ -3,6 +3,7 @@
 import json
 import logging
 import tomllib
+from datetime import date
 from pathlib import Path
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -12,6 +13,35 @@ from app.exceptions import SeedingException, ConfigException, DataIntegrityExcep
 logger = logging.getLogger(__name__)
 
 class DatabaseSeeder:
+    
+    @staticmethod
+    def load_release_dates() -> dict[str, str]:
+        """Load release dates from master song-info.json (data directory)"""
+        try:
+            # Navigate from api/app/seeds to data/song-info.json
+            data_path = Path(__file__).parent.parent.parent.parent / "data" / "song-info.json"
+            
+            if not data_path.exists():
+                logger.warning(f"Master song-info.json not found at {data_path}")
+                return {}
+            
+            with open(data_path, 'r', encoding='utf-8') as f:
+                songs = json.load(f)
+            
+            # Build name -> releasedOn mapping
+            release_map = {}
+            for song in songs:
+                name = song.get("name", "").strip()
+                released_on = song.get("releasedOn")
+                if name and released_on:
+                    release_map[name] = released_on
+            
+            logger.info(f"✓ Loaded {len(release_map)} release dates from song-info.json")
+            return release_map
+        
+        except Exception as e:
+            logger.warning(f"Could not load release dates: {str(e)}")
+            return {}
     
     @staticmethod
     def load_songs_json(franchise_name: str = "liella") -> list[dict]:
@@ -123,6 +153,7 @@ class DatabaseSeeder:
                 raise DataIntegrityException(f"Franchise '{franchise_name}' not found. Run seed_franchises first.")
             
             songs_data = DatabaseSeeder.load_songs_json(franchise_name)
+            release_dates = DatabaseSeeder.load_release_dates()  # Load from master song-info.json
             
             created_count = 0
             skipped_count = 0
@@ -145,6 +176,15 @@ class DatabaseSeeder:
                     if youtube_url:
                         youtube_url = str(youtube_url).strip() or None
                     
+                    # Get release date from master JSON
+                    release_date_str = release_dates.get(song_name)
+                    release_date_obj = None
+                    if release_date_str:
+                        try:
+                            release_date_obj = date.fromisoformat(release_date_str)
+                        except ValueError:
+                            logger.debug(f"  Invalid date format for '{song_name}': {release_date_str}")
+                    
                     # Check if already exists
                     existing = db.query(Song).filter(
                         Song.name == song_name,
@@ -155,11 +195,15 @@ class DatabaseSeeder:
                         song = Song(
                             name=song_name,
                             youtube_url=youtube_url,
+                            release_date=release_date_obj,
                             franchise_id=franchise.id
                         )
                         db.add(song)
                         created_count += 1
                     else:
+                        # Update release_date if missing
+                        if release_date_obj and not existing.release_date:
+                            existing.release_date = release_date_obj
                         logger.debug(f"  Song '{song_name}' already exists")
                 
                 except IntegrityError as e:
@@ -306,6 +350,16 @@ class DatabaseSeeder:
             DatabaseSeeder.seed_franchises(db)
             DatabaseSeeder.seed_songs(db, "liella")
             DatabaseSeeder.seed_subgroups(db, "liella")
+            
+            # Import user rankings from CSV
+            try:
+                from app.seeds.import_rankings import import_user_rankings
+                logger.info("\n📊 Importing user rankings...")
+                imported_count = import_user_rankings(db)
+                logger.info(f"✓ Imported {imported_count} user ranking submissions\n")
+            except Exception as e:
+                logger.warning(f"⚠ Failed to import user rankings: {str(e)}")
+                logger.warning("Continuing with seeding...\n")
             
             logger.info("\n" + "="*50)
             logger.info("✓ Seeding complete!")

@@ -1,10 +1,14 @@
+
 # app/main.py
+# Trigger reload: Oshi Detector consolidated and cleaned (Reload Triggered)
 
 from contextlib import asynccontextmanager
 import logging
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
@@ -13,12 +17,14 @@ from app.models import Song, Franchise
 from app.seeds.init import DatabaseSeeder
 from app.exceptions import LiellaException
 from app.logging_config import setup_logging
-from app.api.v1 import submissions, analysis, health
+from app.api.v1 import submissions, analysis, health, users
 from app.jobs import analysis_scheduler
 
 # Setup logging
 setup_logging()
 logger = logging.getLogger(__name__)
+
+from app.seeds.import_rankings import import_user_rankings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,6 +33,17 @@ async def lifespan(app: FastAPI):
         logger.info("Starting application...")
         database.init_engine()
         database.init_db()
+        
+        # DEBUG: Check volume mounts
+        import os
+        try:
+            logger.info(f"DEBUG: Content of /project_root: {os.listdir('/project_root')}")
+            if os.path.exists('/project_root/data'):
+                logger.info(f"DEBUG: Content of /project_root/data: {os.listdir('/project_root/data')}")
+            else:
+                logger.error("DEBUG: /project_root/data DOES NOT EXIST")
+        except Exception as e:
+            logger.error(f"DEBUG: Failed to list directories: {e}")
         
         db = database.get_session()
         try:
@@ -46,13 +63,14 @@ async def lifespan(app: FastAPI):
                     continue
                 
                 # Seed songs from {franchise}_songs.json only if that franchise has no songs
-                song_count = db.query(Song).filter_by(franchise_id=f_obj.id).count()
-                if song_count == 0:
-                    try:
-                        logger.info(f"Song table for {franchise_name} empty, loading JSON...")
-                        DatabaseSeeder.seed_songs(db, franchise_name)
-                    except Exception as e:
-                        logger.warning(f"Could not seed songs for {franchise_name}: {str(e)}")
+                # Seed songs from {franchise}_songs.json
+                # We run this every time to ensure new songs are added.
+                # seed_songs checks for existence internally.
+                try:
+                    # logger.info(f"Syncing songs for {franchise_name}...")
+                    DatabaseSeeder.seed_songs(db, franchise_name)
+                except Exception as e:
+                    logger.warning(f"Could not seed songs for {franchise_name}: {str(e)}")
 
                 # SUBGROUP SYNCHRONIZATION
                 # This runs every boot to allow for TOML updates. 
@@ -64,6 +82,17 @@ async def lifespan(app: FastAPI):
 
             total_songs = db.query(Song).count()
             logger.info(f"Ready: {total_songs} total songs in system.")
+            
+            # Import user rankings from CSV (only if enabled via config)
+            if settings.seed_rankings_on_startup:
+                try:
+                    logger.info("Syncing user rankings from CSV...")
+                    imported = import_user_rankings(db)
+                    logger.info(f"✓ Imported/updated {imported} user rankings")
+                except Exception as e:
+                    logger.warning(f"Could not import user rankings: {str(e)}")
+            else:
+                logger.info("Skipping user rankings csv import (SEED_RANKINGS_ON_STARTUP=False)")
             
         except Exception as e:
             logger.error(f"Global seeding error: {str(e)}")
@@ -149,6 +178,41 @@ async def universal_exception_handler(request: Request, exc: Exception):
 app.include_router(health.router)
 app.include_router(submissions.router)
 app.include_router(analysis.router)
+app.include_router(users.router)
+
+
+# Static files & Data directory
+# Logic: explicitly check if /project_root exists (Docker volume), otherwise use relative path (Local)
+DOCKER_ROOT = Path("/project_root")
+LOCAL_ROOT = Path(__file__).resolve().parent.parent.parent
+
+if DOCKER_ROOT.exists():
+    FRONTEND_DIR = DOCKER_ROOT
+    DATA_DIR = DOCKER_ROOT / "data"
+else:
+    FRONTEND_DIR = LOCAL_ROOT
+    DATA_DIR = LOCAL_ROOT / "data"
+
+# Mount /data to serve song-info.json and other data files
+app.mount("/data", StaticFiles(directory=DATA_DIR), name="data")
+
+# Serve static JS/CSS files
+@app.get("/app.js")
+async def serve_app_js():
+    return FileResponse(FRONTEND_DIR / "app.js", media_type="application/javascript")
+
+@app.get("/dash_utils.js")
+async def serve_dash_utils_js():
+    return FileResponse(FRONTEND_DIR / "dash_utils.js", media_type="application/javascript")
+
+@app.get("/users.html")
+async def serve_users_html():
+    return FileResponse(FRONTEND_DIR / "users.html", media_type="text/html")
+
+# Root route - serve index.html
+@app.get("/")
+async def serve_index():
+    return FileResponse(FRONTEND_DIR / "index.html", media_type="text/html")
 
 if __name__ == "__main__":
     import uvicorn
