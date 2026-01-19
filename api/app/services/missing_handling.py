@@ -6,42 +6,50 @@ class MissingSongHandler:
 
     @staticmethod
     def append_to_end(ranked: Dict[str, float], missing: Set[str]) -> Dict[str, float]:
+        if not ranked:
+            # If no songs were ranked, put missing songs at rank 1
+            return {song_id: 1.0 for song_id in missing}
+    
+        sorted_ranks = sorted(ranked.values())
+        
+        # Frequency map of how many songs occupy each rank
+        ties = {}
+        for r in sorted_ranks:
+            ties[r] = ties.get(r, 0) + 1
+    
         has_single_gap = False
         gap_start = 0
-        gap_end = 0 # Exclusive
-        prev = 0
-        ties = {rank: 1 for rank in ranked.values()}
-        ties[0] = 1
-
-        for rank in ranked.values():
-            # Need to consider gaps produced by ties
-            if rank == prev:
-                ties[rank] += 1
-                continue
-
-            # Gap detected and it's not due to a tie
-            if rank - prev > ties[prev]:
-                # Multiple missing blocks, impossible to infer rank
-                if has_single_gap:
-                    has_single_gap = False
+        gap_end = 0 
+        prev_rank = 0
+        prev_count = 1 # Initial offset for rank 0
+    
+        unique_ranks = sorted(ties.keys())
+        
+        # Check for gaps between ranks
+        current_pos = 1
+        for rank in unique_ranks:
+            if rank > current_pos:
+                # We found a gap
+                if has_single_gap: 
+                    has_single_gap = False # Multiple gaps found
                     break
                 has_single_gap = True
-                gap_start = prev + ties[prev]
+                gap_start = current_pos
                 gap_end = rank
-
-            prev = rank
-
-        new_rank = max(ranked.values()) + 1
-
-        # Autofill rank into gap when it's clear that's where missing songs go
-        if has_single_gap and len(missing) == gap_end - gap_start:
-            new_rank = gap_start # Same as a tie, tie_handling takes care of this
-
+            
+            current_pos = rank + ties[rank]
+    
+        new_rank = max(sorted_ranks) + 1
+    
+        # Autofill into gap if the missing count fits perfectly
+        if has_single_gap and len(missing) == int(gap_end - gap_start):
+            new_rank = gap_start
+    
         for song in missing:
-            ranked[song] = new_rank
-
+            ranked[song] = float(new_rank)
+    
         return ranked
-
+        
     @staticmethod
     def rerank(ranked: Dict[str, float], missing: Dict[str, float]) -> Dict[str, float]:
         displacing = {}
