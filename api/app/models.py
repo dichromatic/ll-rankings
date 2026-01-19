@@ -71,6 +71,7 @@ class Subgroup(Base):
 class SubmissionStatus(str, enum.Enum):
     PENDING = "pending"
     VALID = "valid"
+    INCOMPLETE = "incomplete"
     CONFLICTED = "conflicted"
     FAILED = "failed"
 

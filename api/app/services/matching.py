@@ -2,7 +2,7 @@
 
 import difflib
 import re
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Set
 
 from sqlalchemy.orm import Session
 
@@ -30,7 +30,7 @@ class StrictSongMatcher:
     @staticmethod
     def parse_ranking_text(
         text: str, franchise: str, db: Session
-    ) -> Tuple[Dict[str, float], Dict[str, dict]]:
+    ) -> Tuple[Dict[str, float], Dict[str, dict], Set[str]]:
         # Load franchise and associated songs
         franchise_obj = db.query(Franchise).filter_by(name=franchise).first()
         songs = db.query(Song).filter_by(franchise_id=franchise_obj.id).all()
@@ -40,7 +40,7 @@ class StrictSongMatcher:
 
         matched: Dict[str, float] = {}
         conflicts: Dict[str, dict] = {}
-        seen_song_ids = set()
+        missing = { str(s.id) for s in songs }
 
         lines = [l.strip() for l in text.strip().split("\n") if l.strip()]
 
@@ -78,7 +78,7 @@ class StrictSongMatcher:
                 continue
 
             # Error 3: Duplicate in the current list
-            if str(song.id) in seen_song_ids:
+            if str(song.id) not in missing:
                 conflicts[f"{song_name_clean}_dup_{idx}"] = {
                     "reason": "duplicate_song",
                     "line_num": idx,
@@ -88,6 +88,7 @@ class StrictSongMatcher:
 
             # Success
             matched[str(song.id)] = float(rank_str)
-            seen_song_ids.add(str(song.id))
+            missing.remove(str(song.id))
 
-        return matched, conflicts
+        matched = {song: matched[song] for song in sorted(matched, key=matched.get)}
+        return matched, conflicts, missing
