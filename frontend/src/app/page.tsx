@@ -1,58 +1,64 @@
 "use client";
-
 import { useState } from "react";
-import { Ranking, useRankings } from "@/hooks/useRankings";
+import { useRankings } from "@/hooks/useRankings";
+import { useSubgroups } from "@/hooks/useSubgroups";
 import { ConsensusRow } from "@/components/ranking/ConsensusRow";
 import { Franchise } from "@/hooks/useFranchiseTheme";
-import { Loader2, Filter } from "lucide-react"; // Icons
+import { Loader2, ChevronDown } from "lucide-react";
 
 export default function ConsensusPage() {
   const [franchise, setFranchise] = useState<Franchise>("liella");
-  const [subgroup, setSubgroup] = useState("All Songs");
+  const [subgroupName, setSubgroupName] = useState("All Songs");
 
-  const { data: rankings, isLoading, isError } = useRankings(franchise, subgroup);
+  const { data: subgroups } = useSubgroups(franchise);
+  const { data: rankings, isLoading } = useRankings(franchise, subgroupName);
 
   return (
-    <div className="max-w-4xl mx-auto py-6 px-4">
-      {/* Header & Controls */}
+    <div className="max-w-4xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b border-zinc-900 pb-8">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter italic">
-            Consensus <span className="text-zinc-600">Feed</span>
-          </h2>
-          <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-2">
-            Community rankings based on {rankings?.length || 0} tracks
-          </p>
-        </div>
+          <h2 className="text-4xl font-black uppercase tracking-tighter italic">Consensus <span className="text-zinc-600">Feed</span></h2>
+          <div className="flex gap-4 mt-4">
+            {/* Franchise Selector */}
+            <div className="relative group">
+              <select 
+                value={franchise} 
+                onChange={(e) => { setFranchise(e.target.value as Franchise); setSubgroupName("All Songs"); }}
+                className="appearance-none bg-zinc-900 border border-zinc-800 px-4 py-2 pr-10 text-[10px] font-black uppercase tracking-widest outline-none focus:border-pink-500"
+              >
+                <option value="liella">Liella!</option>
+                <option value="aqours">Aqours</option>
+                <option value="us">u's</option>
+                <option value="nijigasaki">Nijigasaki</option>
+                <option value="hasunosora">Hasunosora</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
+            </div>
 
-        {/* Filter Pill (Sorter Style) */}
-        <div className="flex items-center gap-2 bg-zinc-900 p-1 rounded-sm">
-          <button className="px-4 py-2 text-[10px] font-black uppercase bg-zinc-800 text-white border border-zinc-700">
-            {franchise}
-          </button>
-          <button className="px-4 py-2 text-[10px] font-black uppercase text-zinc-500 hover:text-white">
-            {subgroup}
-          </button>
+            {/* Subgroup Selector */}
+            <div className="relative">
+              <select 
+                value={subgroupName} 
+                onChange={(e) => setSubgroupName(e.target.value)}
+                className="appearance-none bg-zinc-900 border border-zinc-800 px-4 py-2 pr-10 text-[10px] font-black uppercase tracking-widest outline-none focus:border-pink-500"
+              >
+                {subgroups?.map(sg => <option key={sg.id} value={sg.name}>{sg.name}</option>)}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Results List */}
       <div className="space-y-1">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            {/* ... loading content ... */}
+            <Loader2 className="w-8 h-8 animate-spin text-pink-500" />
+            <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Loading Consensus...</span>
           </div>
-        ) : isError ? (
-          <div className="text-red-500 font-bold p-10 text-center">Error.</div>
         ) : (
-          // Explicitly type the map parameters
-          rankings?.map((song: Ranking, index: number) => (
-            <ConsensusRow 
-              key={song.song_id} 
-              song={song} 
-              index={index} 
-              franchise={franchise} 
-            />
+          rankings?.map((song, index) => (
+            <ConsensusRow key={song.song_id} song={song} index={index} franchise={franchise} />
           ))
         )}
       </div>
