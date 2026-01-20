@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { api } from "@/lib/api";
 
 export interface Subgroup {
   id: string;
@@ -13,10 +13,12 @@ export const useSubgroups = (franchise: string) => {
   return useQuery({
     queryKey: ["subgroups", franchise],
     queryFn: async () => {
-      const { data } = await axios.get(`http://localhost:8000/api/v1/subgroups`, {
+      const { data } = await api.get(`/subgroups`, {
         params: { franchise },
       });
       return data as Subgroup[];
     },
+    refetchOnWindowFocus: false,
+    enabled: !!franchise,
   });
 };

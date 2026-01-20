@@ -1,9 +1,9 @@
 "use client";
-
 import { useState } from "react";
-import axios from "axios";
+import { api } from "@/lib/api";
 import { SongSidebar } from "@/components/submission/SongSidebar";
-import { AlertCircle, CheckCircle2, Send } from "lucide-react";
+import { Franchise } from "@/hooks/useFranchiseTheme";
+import { AlertCircle, CheckCircle2, Send, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -11,117 +11,103 @@ interface Conflict {
   reason: string;
   line_num: number;
   raw_text: string;
-  expected_format?: string;
-  suggestions?: string[];
 }
 
 export default function SubmitPage() {
   const [username, setUsername] = useState("");
   const [rankings, setRankings] = useState("");
+  const [franchise, setFranchise] = useState<Franchise>("liella");
   const [strategy, setStrategy] = useState("retry");
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "incomplete" | "success">("idle");
   const [message, setMessage] = useState("");
-  const [missingSongs, setMissingSongs] = useState<string[]>([]);
 
-    const postRanking = async () => {
+  const onPost = async () => {
+    if (!username || !rankings) return;
     setStatus("loading");
     try {
-        const { data } = await axios.post("http://localhost:8000/api/v1/submit", {
+      const { data } = await api.post("/submit", {
         username,
-        franchise: "liella",
+        franchise,
         subgroup_name: "All Songs",
         ranking_list: rankings,
         missing_song_handling: strategy
-        });
+      });
 
-        if (data.status === "VALID") {
+      if (data.status === "VALID") {
         setStatus("success");
-        setMessage("Rankings finalized and recorded.");
-        } else if (data.status === "INCOMPLETE") {
+        setMessage("Submission verified and saved.");
+      } else if (data.status === "INCOMPLETE") {
         setStatus("incomplete");
-        setMissingSongs(data.missing_songs);
-        // Automatically pre-fill the box with missing songs formatted correctly
         setRankings(data.missing_songs.map((s: string) => `1. ${s} - Liella!`).join("\n"));
-        }
+      }
     } catch (e: any) {
-        setStatus("error");
-        
-        // Explicitly cast the error object so TypeScript knows it contains Conflict objects
-        const conflicts = e.response?.data?.conflicts as Record<string, Conflict> | undefined;
-
-        if (conflicts && Object.keys(conflicts).length > 0) {
-        const firstError = Object.values(conflicts)[0];
-        setMessage(`Error at Line ${firstError.line_num}: ${firstError.reason.replace('_', ' ')}`);
-        } else {
-        setMessage("Connection failed. Ensure the backend is running.");
-        }
+      setStatus("error");
+      const conflicts = e.response?.data?.conflicts as Record<string, Conflict> | undefined;
+      setMessage(conflicts ? `Error at Line ${Object.values(conflicts)[0].line_num}` : "Submission failed.");
     }
-    };
+  };
 
   return (
-    <div className="max-w-6xl mx-auto py-6 px-4 flex flex-col lg:flex-row gap-8">
-      {/* Main Form Area */}
-      <div className="flex-1 space-y-6">
+    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-12">
+      <div className="flex-1 space-y-8">
         <header>
-          <h2 className="text-3xl font-black italic uppercase">Rank <span className="text-zinc-600">Ingestion</span></h2>
-          <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mt-2">
-            Submit your master list to generate statistical profiles
-          </p>
+          <h2 className="text-4xl font-black italic uppercase italic">
+            Rank <span className="text-zinc-600">Ingestion</span>
+          </h2>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex flex-wrap gap-4">
           <input 
-            className="bg-zinc-950 border border-zinc-900 p-4 outline-none focus:border-accent-liella text-sm"
-            placeholder="Username (e.g. Keke_Tang)"
+            className="flex-1 min-w-[240px] bg-zinc-900 border border-zinc-800 p-4 text-sm font-bold outline-none focus:border-pink-500 transition-colors"
+            placeholder="Username (Public)"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
-          <select 
-            className="bg-zinc-950 border border-zinc-900 p-4 text-sm outline-none"
-            value={strategy}
-            onChange={(e) => setStrategy(e.target.value)}
-          >
-            <option value="retry">Retry strategy (Manual Fix)</option>
-            <option value="end">Append strategy (Auto Fill)</option>
-          </select>
+          <div className="relative min-w-[180px]">
+            <select 
+              value={franchise}
+              onChange={(e) => setFranchise(e.target.value as Franchise)}
+              className="w-full appearance-none bg-zinc-900 border border-zinc-800 p-4 text-[10px] font-black uppercase tracking-widest outline-none"
+            >
+              <option value="liella">Liella!</option>
+              <option value="aqours">Aqours!</option>
+              <option value="us">u's</option>
+              <option value="nijigasaki">Nijigasaki</option>
+              <option value="hasunosora">Hasunosora</option>
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+          </div>
         </div>
 
-        <div className="relative">
+        <div className="relative group">
           <textarea 
-            className="w-full h-[400px] bg-zinc-950 border border-zinc-900 p-6 font-mono text-sm outline-none focus:border-accent-liella resize-none"
-            placeholder="1. Song Name - Liella!&#10;2. Another Song - Liella!"
+            className="w-full h-[450px] bg-zinc-950 border border-zinc-900 p-6 font-mono text-xs focus:border-pink-500 outline-none resize-none transition-all"
+            placeholder="1. Song Name - Artist..."
             value={rankings}
             onChange={(e) => setRankings(e.target.value)}
           />
-          
           <AnimatePresence>
-            {status === "incomplete" && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="absolute inset-x-0 bottom-0 bg-amber-500/90 p-4 text-black text-xs font-bold"
-              >
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Rank the missing songs below and click submit again to merge.</span>
-                </div>
+            {status === 'incomplete' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute bottom-4 left-4 right-4 bg-amber-500 p-3 text-black text-[10px] font-black uppercase">
+                Missing songs detected. Please rank the items below.
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         <button 
-          onClick={postRanking}
+          onClick={onPost}
           disabled={status === "loading"}
-          className="w-full bg-accent-liella py-5 text-black font-black uppercase tracking-tighter hover:bg-white transition-all flex items-center justify-center gap-3"
+          className="w-full bg-pink-500 py-5 text-black font-black uppercase tracking-tighter hover:bg-white disabled:opacity-50 transition-all flex items-center justify-center gap-4"
         >
-          {status === "loading" ? "Syncing..." : <><Send className="w-4 h-4" /> Finalize Rankings</>}
+          {status === "loading" ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-4 h-4" />}
+          Finalize Rankings
         </button>
 
         {message && (
           <div className={cn(
-            "p-4 text-xs font-bold uppercase tracking-widest flex items-center gap-3",
-            status === "success" ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+            "p-4 border text-[10px] font-black uppercase tracking-widest flex items-center gap-4",
+            status === "success" ? "bg-green-500/10 border-green-500/50 text-green-500" : "bg-red-500/10 border-red-500/50 text-red-500"
           )}>
             {status === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
             {message}
@@ -129,9 +115,8 @@ export default function SubmitPage() {
         )}
       </div>
 
-      {/* Side Reference */}
-      <aside className="w-full lg:w-80 h-[600px] lg:h-auto">
-        <SongSidebar franchise="liella" />
+      <aside className="w-full lg:w-96">
+        <SongSidebar franchise={franchise} />
       </aside>
     </div>
   );
