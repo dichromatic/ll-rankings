@@ -1,4 +1,5 @@
 import { Shell } from "@/components/layout/Shell";
+import Providers from "./providers"; // Import the provider
 import "./globals.css";
 
 export default function RootLayout({
@@ -9,10 +10,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-black">
-        {/* We wrap everything in a "Shell" to manage sidebars/nav once */}
-        <Shell>
-          {children}
-        </Shell>
+        {/* The Provider must wrap the Shell so hooks inside the shell work */}
+        <Providers>
+          <Shell>
+            {children}
+          </Shell>
+        </Providers>
       </body>
     </html>
   );

@@ -14,13 +14,11 @@ export const Shell = ({ children }: { children: React.ReactNode }) => {
     setIsSyncing(true);
     try {
       await triggerAnalysisRecompute();
-      // Delay to allow background worker to finish
       setTimeout(() => {
         setIsSyncing(false);
         window.location.reload();
       }, 3000);
     } catch (error) {
-      console.error("Recompute trigger failed", error);
       setIsSyncing(false);
     }
   };
@@ -33,12 +31,12 @@ export const Shell = ({ children }: { children: React.ReactNode }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans">
-      <nav className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-zinc-900">
+    <div className="min-h-screen bg-background text-text font-sans selection:bg-accent-liella/30">
+      <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <h1 className="text-lg font-black tracking-tighter uppercase italic">
-              LL <span className="text-pink-500">Rankings</span>
+            <h1 className="text-xl font-black tracking-tighter uppercase text-white">
+              LL <span className="text-accent-liella">Rankings</span>
             </h1>
             <div className="hidden md:flex gap-6">
               {navItems.map((item) => (
@@ -46,8 +44,8 @@ export const Shell = ({ children }: { children: React.ReactNode }) => {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "text-[10px] font-black uppercase tracking-widest transition-colors",
-                    pathname === item.href ? "text-pink-500" : "text-zinc-500 hover:text-white"
+                    "text-[11px] font-black uppercase tracking-widest transition-all",
+                    pathname === item.href ? "text-accent-liella" : "text-muted hover:text-white"
                   )}
                 >
                   {item.name}
@@ -56,26 +54,17 @@ export const Shell = ({ children }: { children: React.ReactNode }) => {
             </div>
           </div>
           <div className="flex gap-4">
-            <button 
-              onClick={onRecompute}
-              disabled={isSyncing}
-              className="hidden sm:flex items-center gap-2 text-zinc-500 hover:text-white transition-colors"
-            >
+            <button onClick={onRecompute} disabled={isSyncing} className="hidden sm:flex items-center gap-2 text-muted hover:text-white">
               {isSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-              <span className="text-[10px] font-black uppercase tracking-widest">
-                {isSyncing ? "Syncing..." : "Recompute"}
-              </span>
+              <span className="text-[10px] font-bold uppercase tracking-widest">Recompute</span>
             </button>
-            <Link 
-              href="/submit" 
-              className="bg-white text-black px-4 py-1.5 rounded-sm text-xs font-bold uppercase hover:bg-pink-500 hover:text-white transition-all"
-            >
+            <Link href="/submit" className="bg-white text-background px-5 py-2 rounded-sm text-xs font-black uppercase hover:bg-accent-liella hover:text-white transition-all">
               Submit
             </Link>
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto px-4 py-8 pb-24">
+      <main className="max-w-7xl mx-auto px-4 py-8">
         {children}
       </main>
     </div>

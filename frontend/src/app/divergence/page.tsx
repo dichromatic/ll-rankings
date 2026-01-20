@@ -17,7 +17,7 @@ export default function DivergencePage() {
     <div className="max-w-7xl mx-auto space-y-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-900 pb-8">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter italic">
+          <h2 className="text-4xl font-black uppercase tracking-tighter">
             Taste <span className="text-zinc-600">Divergence</span>
           </h2>
           <div className="flex gap-4 mt-6">

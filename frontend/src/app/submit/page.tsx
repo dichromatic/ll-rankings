@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api } from "@/lib/api"; // Use the centralized client
 import { SongSidebar } from "@/components/submission/SongSidebar";
 import { Franchise } from "@/hooks/useFranchiseTheme";
 import { AlertCircle, CheckCircle2, Send, ChevronDown, Loader2 } from "lucide-react";
@@ -22,9 +22,16 @@ export default function SubmitPage() {
   const [message, setMessage] = useState("");
 
   const onPost = async () => {
-    if (!username || !rankings) return;
+    if (!username || !rankings) {
+      setMessage("Username and ranking list are required.");
+      setStatus("error");
+      return;
+    }
+
     setStatus("loading");
     try {
+      // Logic: Centralized api has baseURL '/api/v1'
+      // This call hits: POST /api/v1/submit
       const { data } = await api.post("/submit", {
         username,
         franchise,
@@ -35,42 +42,45 @@ export default function SubmitPage() {
 
       if (data.status === "VALID") {
         setStatus("success");
-        setMessage("Submission verified and saved.");
+        setMessage("Rankings successfully recorded.");
+        setRankings(""); // Clear on success
       } else if (data.status === "INCOMPLETE") {
         setStatus("incomplete");
+        // Format missing songs with rank '1.' so they pass the backend matcher immediately
         setRankings(data.missing_songs.map((s: string) => `1. ${s} - Liella!`).join("\n"));
       }
     } catch (e: any) {
       setStatus("error");
       const conflicts = e.response?.data?.conflicts as Record<string, Conflict> | undefined;
-      setMessage(conflicts ? `Error at Line ${Object.values(conflicts)[0].line_num}` : "Submission failed.");
+      if (conflicts) {
+        const firstError = Object.values(conflicts)[0];
+        setMessage(`Line ${firstError.line_num}: ${firstError.reason}`);
+      } else {
+        setMessage("API Error: Ensure backend is running.");
+      }
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-12">
+    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-12 animate-in fade-in duration-500">
       <div className="flex-1 space-y-8">
-        <header>
-          <h2 className="text-4xl font-black italic uppercase italic">
-            Rank <span className="text-zinc-600">Ingestion</span>
-          </h2>
-        </header>
-
+        <h2 className="text-4xl font-black uppercase tracking-tighter text-white">Rank <span className="text-muted font-light">Ingestion</span></h2>
+        
         <div className="flex flex-wrap gap-4">
           <input 
-            className="flex-1 min-w-[240px] bg-zinc-900 border border-zinc-800 p-4 text-sm font-bold outline-none focus:border-pink-500 transition-colors"
-            placeholder="Username (Public)"
+            className="flex-1 min-w-[240px] bg-zinc-900 border border-zinc-800 p-4 text-sm font-bold outline-none focus:border-pink-500 transition-all"
+            placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
-          <div className="relative min-w-[180px]">
+          <div className="relative">
             <select 
               value={franchise}
               onChange={(e) => setFranchise(e.target.value as Franchise)}
-              className="w-full appearance-none bg-zinc-900 border border-zinc-800 p-4 text-[10px] font-black uppercase tracking-widest outline-none"
+              className="appearance-none bg-zinc-900 border border-zinc-800 p-4 pr-12 text-[10px] font-black uppercase tracking-widest outline-none focus:border-pink-500"
             >
               <option value="liella">Liella!</option>
-              <option value="aqours">Aqours!</option>
+              <option value="aqours">Aqours</option>
               <option value="us">u's</option>
               <option value="nijigasaki">Nijigasaki</option>
               <option value="hasunosora">Hasunosora</option>
@@ -79,17 +89,21 @@ export default function SubmitPage() {
           </div>
         </div>
 
-        <div className="relative group">
+        <div className="relative">
           <textarea 
-            className="w-full h-[450px] bg-zinc-950 border border-zinc-900 p-6 font-mono text-xs focus:border-pink-500 outline-none resize-none transition-all"
-            placeholder="1. Song Name - Artist..."
+            className="w-full h-[450px] bg-zinc-950 border border-zinc-800 p-6 font-mono text-xs focus:border-pink-500 outline-none resize-none"
+            placeholder="Format: 1. Song Name - Artist"
             value={rankings}
             onChange={(e) => setRankings(e.target.value)}
           />
           <AnimatePresence>
-            {status === 'incomplete' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute bottom-4 left-4 right-4 bg-amber-500 p-3 text-black text-[10px] font-black uppercase">
-                Missing songs detected. Please rank the items below.
+            {status === "incomplete" && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute bottom-4 left-4 right-4 bg-amber-500 p-3 text-black text-[10px] font-black uppercase"
+              >
+                Draft Saved. Rank the missing songs displayed above to finish.
               </motion.div>
             )}
           </AnimatePresence>
@@ -106,7 +120,7 @@ export default function SubmitPage() {
 
         {message && (
           <div className={cn(
-            "p-4 border text-[10px] font-black uppercase tracking-widest flex items-center gap-4",
+            "p-4 text-[10px] font-black uppercase tracking-widest flex items-center gap-4 border",
             status === "success" ? "bg-green-500/10 border-green-500/50 text-green-500" : "bg-red-500/10 border-red-500/50 text-red-500"
           )}>
             {status === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
