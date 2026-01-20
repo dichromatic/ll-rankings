@@ -1,7 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-
-const API_BASE = "http://localhost:8000/api/v1";
+import { api } from "@/lib/api";
 
 export interface ControversyResult {
   song_id: string;
@@ -32,10 +30,10 @@ export const useControversy = (franchise: string, subgroup: string) => {
   return useQuery({
     queryKey: ["controversy", franchise, subgroup],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_BASE}/analysis/controversy`, { params: { franchise, subgroup } });
+      const { data } = await api.get(`/analysis/controversy`, { params: { franchise, subgroup } });
       return data.results as ControversyResult[];
     },
-    refetchOnWindowFocus: false,
+    enabled: !!franchise && !!subgroup,
   });
 };
 
@@ -43,20 +41,20 @@ export const useHotTakes = (franchise: string, subgroup: string) => {
   return useQuery({
     queryKey: ["takes", franchise, subgroup],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_BASE}/analysis/takes`, { params: { franchise, subgroup } });
+      const { data } = await api.get(`/analysis/takes`, { params: { franchise, subgroup } });
       return data.takes as HotTake[];
     },
-    refetchOnWindowFocus: false,
+    enabled: !!franchise && !!subgroup,
   });
 };
 
-export const useSpice = (franchise: string) => {
+export const useSpiceMeter = (franchise: string) => {
   return useQuery({
     queryKey: ["spice", franchise],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_BASE}/analysis/spice`, { params: { franchise } });
+      const { data } = await api.get(`/analysis/spice`, { params: { franchise } });
       return data.results as SpiceResult[];
     },
-    refetchOnWindowFocus: false,
+    enabled: !!franchise,
   });
 };
