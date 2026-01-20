@@ -58,3 +58,19 @@ export const useSpiceMeter = (franchise: string) => {
     enabled: !!franchise,
   });
 };
+
+export type DivergenceMatrix = Record<string, Record<string, number>>;
+
+export const useDivergence = (franchise: string, subgroup: string) => {
+  return useQuery({
+    queryKey: ["divergence", franchise, subgroup],
+    queryFn: async () => {
+      const { data } = await api.get(`/analysis/divergence`, { 
+        params: { franchise, subgroup } 
+      });
+      return data.matrix as DivergenceMatrix;
+    },
+    enabled: !!franchise && !!subgroup,
+    refetchOnWindowFocus: false,
+  });
+};
