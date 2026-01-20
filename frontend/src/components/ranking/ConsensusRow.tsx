@@ -14,16 +14,18 @@ export const ConsensusRow = ({ song, index, franchise }: Props) => {
   return (
     <div className={cn(
       "group flex items-center gap-4 p-4 mb-2 bg-surface border border-border border-l-4 transition-all hover:bg-surface-hover",
-      theme.border // Dynamic accent color on the left border
+      theme.border
     )}>
+      {/* Rank Indicator */}
       <div className="flex flex-col items-center justify-center w-10">
-        <span className="text-2xl font-black tabular-nums text-muted group-hover:text-text">
+        <span className="text-2xl font-black tabular-nums text-muted group-hover:text-text transition-colors">
           {index + 1}
         </span>
       </div>
 
+      {/* Song Info (Natural Casing) */}
       <div className="flex-1 min-w-0">
-        <h3 className="text-base md:text-lg font-bold text-white truncate uppercase tracking-tight">
+        <h3 className="text-base md:text-lg font-bold text-white truncate tracking-tight">
           {song.song_name}
         </h3>
         <div className="flex gap-4 mt-1">
@@ -42,12 +44,13 @@ export const ConsensusRow = ({ song, index, franchise }: Props) => {
         </div>
       </div>
 
+      {/* Score Column */}
       <div className="text-right hidden sm:block">
         <span className="block text-xl font-black tabular-nums text-white">
           {song.points.toLocaleString()}
         </span>
         <span className="meta-label tracking-tighter">
-          Score Weight
+          Weight Score
         </span>
       </div>
     </div>
