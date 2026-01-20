@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../4tb/swag/config"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "ll-rankings"
+	}
+}

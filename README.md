@@ -23,7 +23,7 @@ The system calculates several metrics to understand community behavior:
     The system automatically seeds songs and subgroups from `liella_songs.json` and `subgroups.toml` on first boot
 
 3.  **Populate the database with rankings**:
-    Use https://hamproductions.github.io/the-sorter/songs/ to generate rankings and then copy results to txt. Paste these results into the website frontend at https://ratings.rumi.moe as instructed.
+    Use https://hamproductions.github.io/the-sorter/songs/ to generate rankings and then copy results to txt. Paste these results into the website frontend by opening 'index.html' or at https://ratings.rumi.moe as instructed
 
 5.  **Access the Frontend**:
-    Open `test.html` in your browser to view the leaderboard and analysis suite
+    Look at `index.html` in your browser to view the leaderboard and analysis suite
