@@ -208,4 +208,5 @@ __marimo__/
 
 backups/
 api/export_rankings.py
-.code-workspace
+*.code-workspace
+/node_modules
