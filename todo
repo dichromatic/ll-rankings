@@ -1,0 +1,5 @@
+consolidate data same as hamp's sorter (write scripts to wrangle into database format, but keep the raw data same as from llfans)
+add trios features into new frontend
+deploy new frontend (dockerise?)
+automated testing
+better commit categorisation
