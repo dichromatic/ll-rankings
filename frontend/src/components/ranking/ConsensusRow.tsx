@@ -1,6 +1,6 @@
 import { Ranking } from "@/hooks/useRankings";
 import { useFranchiseTheme, Franchise } from "@/hooks/useFranchiseTheme";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/boilerplate";
 
 interface Props {
   song: Ranking;

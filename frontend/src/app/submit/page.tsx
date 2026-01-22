@@ -1,11 +1,11 @@
 "use client";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api } from "@/utils/api";
 import { SongSidebar } from "@/components/submission/SongSidebar";
-import { Franchise } from "@/hooks/useFranchiseTheme";
+import { Franchise, useFranchiseTheme } from "@/hooks/useFranchiseTheme";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { AlertCircle, CheckCircle2, Send, ChevronDown, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/boilerplate";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Conflict {
@@ -20,6 +20,8 @@ export default function SubmitPage() {
   const [strategy, setStrategy] = useState("retry");
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "incomplete" | "success">("idle");
   const [message, setMessage] = useState("");
+
+  const theme = useFranchiseTheme(franchise);
 
   const onPost = async () => {
     if (!username || !rankings) return;
@@ -51,7 +53,7 @@ export default function SubmitPage() {
 
         <div className="flex flex-wrap gap-4">
           <input 
-            className="flex-1 min-w-[240px] bg-surface border border-border p-4 text-sm font-bold text-white outline-none focus:border-accent-liella"
+            className={cn("flex-1 min-w-[240px] bg-surface border border-border p-4 text-sm font-bold text-white outline-none", theme.focus)}
             placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -74,7 +76,7 @@ export default function SubmitPage() {
 
         <div className="relative">
           <textarea 
-            className="w-full h-[450px] bg-background border border-border p-6 font-mono text-xs text-text focus:border-accent-liella outline-none resize-none"
+            className={cn("w-full h-[450px] bg-background border border-border p-6 font-mono text-xs text-text outline-none resize-none", theme.focus)}
             placeholder="1. Song Name - Artist..."
             value={rankings}
             onChange={(e) => setRankings(e.target.value)}
@@ -91,7 +93,7 @@ export default function SubmitPage() {
         <button 
           onClick={onPost}
           disabled={status === "loading"}
-          className="w-full bg-white py-5 text-background font-black uppercase tracking-widest hover:bg-accent-liella hover:text-white disabled:opacity-50 transition-all flex items-center justify-center gap-4"
+          className={cn("w-full bg-white py-5 text-background font-black uppercase tracking-widest hover:text-white disabled:opacity-50 transition-all flex items-center justify-center gap-4", theme.hover)}
         >
           {status === "loading" ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-4 h-4" />}
           Finalize List

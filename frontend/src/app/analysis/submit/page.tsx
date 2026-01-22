@@ -1,12 +1,13 @@
 "use client";
-import { useState } from "react";
-import { api } from "@/lib/api";
+import { useContext, useState } from "react";
+import { api } from "@/utils/api";
 import { SongSidebar } from "@/components/submission/SongSidebar";
-import { Franchise } from "@/hooks/useFranchiseTheme";
+import { Franchise, useFranchiseTheme } from "@/hooks/useFranchiseTheme";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { AlertCircle, CheckCircle2, Send, ChevronDown, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/boilerplate";
 import { motion, AnimatePresence } from "framer-motion";
+import { FranchiseContext, SubgroupContext } from "@/app/contexts";
 
 interface Conflict {
   reason: string; line_num: number; raw_text: string;
@@ -16,10 +17,13 @@ export default function SubmitPage() {
   const isMounted = useIsMounted();
   const [username, setUsername] = useState("");
   const [rankings, setRankings] = useState("");
-  const [franchise, setFranchise] = useState<Franchise>("liella");
   const [strategy, setStrategy] = useState("retry");
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "incomplete" | "success">("idle");
   const [message, setMessage] = useState("");
+  const franchise = useContext(FranchiseContext);
+  const subgroupName = useContext(SubgroupContext);
+
+  const theme = useFranchiseTheme(franchise);
 
   const onPost = async () => {
     if (!username || !rankings) return;
@@ -51,30 +55,16 @@ export default function SubmitPage() {
 
         <div className="flex flex-wrap gap-4">
           <input 
-            className="flex-1 min-w-[240px] bg-surface border border-border p-4 text-sm font-bold text-white outline-none focus:border-accent-liella"
+            className={cn("flex-1 min-w-[240px] bg-surface border border-border p-4 text-sm font-bold text-white outline-none", theme.focus)}
             placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
-          <div className="relative min-w-[180px]">
-            <select 
-              value={franchise}
-              onChange={(e) => setFranchise(e.target.value as Franchise)}
-              className="w-full appearance-none bg-surface border border-border p-4 text-[10px] font-black uppercase tracking-widest text-white outline-none"
-            >
-              <option value="liella">Liella!</option>
-              <option value="aqours">Aqours</option>
-              <option value="us">u's</option>
-              <option value="nijigasaki">Nijigasaki</option>
-              <option value="hasunosora">Hasunosora</option>
-            </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-          </div>
         </div>
 
         <div className="relative">
           <textarea 
-            className="w-full h-[450px] bg-background border border-border p-6 font-mono text-xs text-text focus:border-accent-liella outline-none resize-none"
+            className={cn("w-full h-[450px] bg-background border border-border p-6 font-mono text-xs text-text outline-none resize-none", theme.focus)}
             placeholder="1. Song Name - Artist..."
             value={rankings}
             onChange={(e) => setRankings(e.target.value)}
@@ -91,7 +81,7 @@ export default function SubmitPage() {
         <button 
           onClick={onPost}
           disabled={status === "loading"}
-          className="w-full bg-white py-5 text-background font-black uppercase tracking-widest hover:bg-accent-liella hover:text-white disabled:opacity-50 transition-all flex items-center justify-center gap-4"
+          className={cn("w-full bg-white py-5 text-background font-black uppercase tracking-widest hover:text-white disabled:opacity-50 transition-all flex items-center justify-center gap-4", theme.hover)}
         >
           {status === "loading" ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-4 h-4" />}
           Finalize List

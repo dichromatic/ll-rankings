@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useSongs } from "@/hooks/useSongs";
 import { Search, Copy, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/boilerplate";
+import { Franchise, useFranchiseTheme } from "@/hooks/useFranchiseTheme";
 
-export const SongSidebar = ({ franchise }: { franchise: string }) => {
+export const SongSidebar = ({ franchise }: { franchise: Franchise }) => {
   const [query, setQuery] = useState("");
   const { data: songs } = useSongs(franchise);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const theme = useFranchiseTheme(franchise);
 
   const filtered = songs?.filter(s => 
     s.name.toLowerCase().includes(query.toLowerCase())
@@ -27,7 +29,7 @@ export const SongSidebar = ({ franchise }: { franchise: string }) => {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500" />
           <input 
-            className="w-full bg-black border border-zinc-800 py-2 pl-8 pr-4 text-xs outline-none focus:border-accent-liella"
+            className={cn("w-full bg-black border border-zinc-800 py-2 pl-8 pr-4 text-xs outline-none", theme.focus)}
             placeholder="Search database..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}

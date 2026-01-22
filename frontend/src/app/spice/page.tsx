@@ -1,14 +1,19 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useContext, use } from "react";
 import { useSpiceMeter } from "@/hooks/useAnalysisData";
-import { Franchise } from "@/hooks/useFranchiseTheme";
+import { Franchise, useFranchiseTheme } from "@/hooks/useFranchiseTheme";
 import { SpiceRow } from "@/components/analysis/SpiceRow";
 import { Loader2, ChevronDown, Flame } from "lucide-react";
+import { FranchiseContext, SubgroupContext } from "../contexts";
+import { cn } from "@/utils/boilerplate";
 
 export default function SpicePage() {
-  const [franchise, setFranchise] = useState<Franchise>("liella");
+  const franchise = useContext(FranchiseContext);
+  const subgroupName = useContext(SubgroupContext);
   const { data: results, isLoading, isError } = useSpiceMeter(franchise);
+
+  const theme = useFranchiseTheme(franchise);
 
   // Find the highest score to normalize the bars
   const maxScore = useMemo(() => {
@@ -22,7 +27,7 @@ export default function SpicePage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-900 pb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <Flame className="w-5 h-5 text-pink-500" />
+            <Flame className={cn("w-5 h-5", theme.text)} />
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
               Community Meta
             </span>
@@ -30,23 +35,6 @@ export default function SpicePage() {
           <h2 className="text-4xl font-black uppercase tracking-tighter">
             Spice <span className="text-zinc-600">Meter</span>
           </h2>
-          
-          <div className="flex gap-4 mt-8">
-            <div className="relative">
-              <select 
-                value={franchise} 
-                onChange={(e) => setFranchise(e.target.value as Franchise)}
-                className="appearance-none bg-zinc-900 border border-zinc-800 px-6 py-3 pr-12 text-[11px] font-black uppercase tracking-widest outline-none focus:border-pink-500 transition-colors"
-              >
-                <option value="liella">Liella!</option>
-                <option value="aqours">Aqours</option>
-                <option value="us">u's</option>
-                <option value="nijigasaki">Nijigasaki</option>
-                <option value="hasunosora">Hasunosora</option>
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 pointer-events-none" />
-            </div>
-          </div>
         </div>
 
         <div className="max-w-[280px] text-right hidden md:block">

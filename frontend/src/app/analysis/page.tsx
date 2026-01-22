@@ -1,20 +1,20 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useContext } from "react";
 import { useRankings, Ranking } from "@/hooks/useRankings";
 import { useSubgroups } from "@/hooks/useSubgroups";
 import { useControversy, useHotTakes } from "@/hooks/useAnalysisData";
-import { Franchise } from "@/hooks/useFranchiseTheme";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { StatCard, StatRow } from "@/components/analysis/StatCard";
 import { 
   Flame, Target, ShieldCheck, 
   ArrowUpDown, Swords, ChevronDown 
 } from "lucide-react";
+import { FranchiseContext, SubgroupContext } from "../contexts";
 
 export default function AnalysisPage() {
   const isMounted = useIsMounted();
-  const [franchise, setFranchise] = useState<Franchise>("liella");
-  const [subgroupName, setSubgroupName] = useState("All Songs");
+  const franchise = useContext(FranchiseContext);
+  const subgroupName = useContext(SubgroupContext);
 
   const { data: subgroups } = useSubgroups(franchise);
   const { data: rankings } = useRankings(franchise, subgroupName);
@@ -72,37 +72,9 @@ export default function AnalysisPage() {
     <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in duration-500">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border pb-8">
-        <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter text-white">
-            Statistical <span className="text-muted font-light">Outliers</span>
-          </h2>
-          <div className="flex gap-4 mt-6">
-            <div className="relative group">
-              <select 
-                value={franchise} 
-                onChange={(e) => { setFranchise(e.target.value as Franchise); setSubgroupName("All Songs"); }}
-                className="appearance-none bg-surface border border-border px-4 py-2 pr-10 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-accent-liella"
-              >
-                <option value="liella">Liella!</option>
-                <option value="aqours">Aqours</option>
-                <option value="us">u's</option>
-                <option value="nijigasaki">Nijigasaki</option>
-                <option value="hasunosora">Hasunosora</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" />
-            </div>
-            <div className="relative">
-              <select 
-                value={subgroupName} 
-                onChange={(e) => setSubgroupName(e.target.value)}
-                className="appearance-none bg-surface border border-border px-4 py-2 pr-10 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-accent-liella"
-              >
-                {subgroups?.map(sg => <option key={sg.id} value={sg.name}>{sg.name}</option>)}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" />
-            </div>
-          </div>
-        </div>
+        <h2 className="text-4xl font-black uppercase tracking-tighter text-white">
+          Statistical <span className="text-muted font-light">Outliers</span>
+        </h2>
       </div>
 
       {/* Grid of working Stat Cards */}
