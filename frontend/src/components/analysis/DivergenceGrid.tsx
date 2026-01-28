@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/boilerplate";
 import { Franchise, useFranchiseTheme } from "@/hooks/useFranchiseTheme";
 
 interface Props {
@@ -45,7 +45,7 @@ export const DivergenceGrid = ({ matrix, franchise }: Props) => {
                 const opacity = u1 === u2 ? 1 : Math.max(0.05, 1 - (value / maxDivergence));
                 return (
                   <td key={u2}
-                    style={{ backgroundColor: u1 === u2 ? 'transparent' : `rgba(248, 82, 173, ${Math.pow(opacity, 2)})` }}
+                    style={{ backgroundColor: u1 === u2 ? 'transparent' : `rgba(${theme.rgb}, ${Math.pow(opacity, 2)})` }}
                     className="p-4 text-center text-[10px] font-mono font-black border-b border-r border-border/30 text-white"
                   >
                     {value.toFixed(1)}
