@@ -47,47 +47,51 @@ export const Shell = ({ children }: { children: React.ReactNode }) => {
           {/* HEADER SECTION */}
           <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
             {/* Top Tier: Brand and Actions */}
-            <div className="max-w-7xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
-              <div className="flex items-center gap-4 md:gap-6">
-                <Link href="/" className="flex items-center gap-2">
-                  <h1 className="text-lg md:text-xl font-black uppercase tracking-tighter text-white">
-                    LL <span className={pathname !== "/submit" ? theme.text : "text-muted"}>Rankings</span>
-                  </h1>
-                </Link>
-                {/* Franchise & Subgroup Selectors */
-                pathname !== "/submit" && <>
-                  <div className="relative">
-                    <select 
-                      value={franchise}
-                      onChange={(e) => { setFranchise(e.target.value as Franchise); setSubgroupName("All Songs"); }}
-                      className={cn("appearance-none bg-surface border border-border px-4 py-2 pr-10 text-[10px] font-black uppercase tracking-widest text-white outline-none", theme.focus)}
-                    >
-                      <option value="liella">Liella!</option>
-                      <option value="aqours">Aqours</option>
-                      <option value="us">u's</option>
-                      <option value="nijigasaki">Nijigasaki</option>
-                      <option value="hasunosora">Hasunosora</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" />
-                  </div>
+            <div className={cn("max-w-7xl mx-auto my-3 md:my-auto px-4 md:h-16 grid grid-cols-2 md:grid-cols-3", pathname !== "/submit" ? "grid-rows-2 h-20" : "grid-rows-1")}>
+              <div className={cn("md:col-span-2 grid grid-rows-subgrid justify-start items-center gap-3", pathname !== "/submit" ? "row-span-2" : "row-span-1")}>
+                <div className="row-span-1 md:row-start-1 md:row-span-2">
+                  <Link href="/" className="flex items-center gap-2">
+                    <h1 className="text-lg md:text-xl font-black uppercase tracking-tighter text-white">
+                      LL <span className={pathname !== "/submit" ? theme.text : "text-muted"}>Rankings</span>
+                    </h1>
+                  </Link>
+                </div>
+                {/* Franchise & Subgroup Selectors */}
+                {pathname !== "/submit" &&
+                  <div className="row-start-2 md:row-start-1 row-span-2 flex gap-4">
+                    <div className="relative">
+                      <select
+                        value={franchise}
+                        onChange={(e) => { setFranchise(e.target.value as Franchise); setSubgroupName("All Songs"); }}
+                        className={cn("appearance-none bg-surface border border-border px-4 py-2 pr-10 text-[10px] font-black uppercase tracking-widest text-white outline-none", theme.focus)}
+                      >
+                        <option value="liella">Liella!</option>
+                        <option value="aqours">Aqours</option>
+                        <option value="us">u's</option>
+                        <option value="nijigasaki">Nijigasaki</option>
+                        <option value="hasunosora">Hasunosora</option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" />
+                    </div>
 
-                  {pathname !== "/spice" && <div className="relative">
-                    <select 
-                      value={subgroupName}
-                      onChange={(e) => setSubgroupName(e.target.value)}
-                      className={cn("appearance-none bg-surface border border-border px-4 py-2 pr-10 text-[10px] font-black uppercase tracking-widest text-white outline-none", theme.focus)}
-                    >
-                      {subgroups?.map(sg => <option key={sg.id} value={sg.name}>{sg.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" />
+                    {pathname !== "/spice" &&
+                      <div className="relative">
+                        <select
+                          value={subgroupName}
+                          onChange={(e) => setSubgroupName(e.target.value)}
+                          className={cn("appearance-none bg-surface border border-border px-4 py-2 pr-10 text-[10px] font-black uppercase tracking-widest text-white outline-none", theme.focus)}
+                        >
+                          {subgroups?.map(sg => <option key={sg.id} value={sg.name}>{sg.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" />
+                      </div>}
                   </div>}
-                </>}
               </div>
 
-              <div className="flex items-center gap-3 md:gap-6">
-                <button 
-                  onClick={onRecompute} 
-                  disabled={isSyncing} 
+              <div className="row-span-2 justify-self-end self-start md:self-center flex items-center gap-3 md:gap-6">
+                <button
+                  onClick={onRecompute}
+                  disabled={isSyncing}
                   className="flex items-center gap-2 text-muted hover:text-white transition-colors"
                   title="Trigger Recompute"
                 >
@@ -96,8 +100,8 @@ export const Shell = ({ children }: { children: React.ReactNode }) => {
                     Recompute
                   </span>
                 </button>
-                
-                <button 
+
+                <button
                   onClick={() => router.push('/submit')}
                   className={cn("bg-white text-background px-3 md:px-5 py-1.5 md:py-2 rounded-sm text-[10px] md:text-xs font-black uppercase hover:text-white transition-all flex items-center justify-start gap-2", theme.hover)}
                 >
@@ -116,7 +120,7 @@ export const Shell = ({ children }: { children: React.ReactNode }) => {
                     href={item.href}
                     className={cn(
                       "text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-b-2 py-2 md:py-0",
-                      pathname === item.href 
+                      pathname === item.href
                         ? cn(theme.text, theme.border)
                         : "text-muted border-transparent hover:text-white"
                     )}
