@@ -7,7 +7,7 @@ from uuid import UUID
 import math
 
 from sqlalchemy.orm import Session
-from app.models import Song, Subgroup, Submission, SubmissionStatus
+from app.models import Song, Subgroup, Submission, SubmissionStatus, AnalysisResult
 from app.services.ranking_utils import RelativeRankingService
 
 class AnalysisService:
@@ -302,6 +302,63 @@ class AnalysisService:
             })
 
         return sorted(results, key=lambda x: x["average"])
+
+    @staticmethod
+    def compute_individual_rankings(
+        franchise_id: str, subgroup_id: str, db: Session
+    ) -> dict[str,list[dict]]:
+        subgroup = db.query(Subgroup).filter_by(id=subgroup_id).first()
+        if not subgroup or not subgroup.song_ids:
+            return {"": []}
+
+        submissions = (
+            db.query(Submission)
+            .filter(
+                Submission.franchise_id == franchise_id,
+                Submission.submission_status == SubmissionStatus.VALID,
+            )
+            .all()
+        )
+
+        user_rel_rankings_dict = {}
+        for sub in submissions:
+            rel_map = RelativeRankingService.relativize(
+                sub.parsed_rankings, 
+                subgroup.song_ids
+            )
+            if rel_map:
+                user_rel_rankings_dict[sub.username] = rel_map
+
+        if not user_rel_rankings_dict:
+            return {"": []}
+
+        song_stats = defaultdict(list)
+        for rel_map in user_rel_rankings_dict.values():
+            for song_id, rank in rel_map.items():
+                song_stats[song_id].append(rank)
+
+        songs = db.query(Song).filter(Song.id.in_(subgroup.song_ids)).all()
+        song_name_map = {str(s.id): s.name for s in songs}
+        
+        results = {}
+        for username, rel_map in user_rel_rankings_dict.items():
+            individual_ranks = []
+            total_songs = len(song_stats)
+            for song_id, ranks in song_stats.items():
+                avg = statistics.mean(ranks)
+                song_rank = rel_map[song_id]
+                song_name = song_name_map.get(song_id, "Unknown")
+                individual_ranks.append({
+                    "rank": song_rank,
+                    "song_id": song_id,
+                    "song_name": song_name,
+                    "delta": (song_rank - avg) / total_songs,
+                    "avg": round(avg, 2),
+                })
+                
+            results[username] = sorted(individual_ranks, key=lambda x: x["rank"])
+        
+        return results
 
 
 class ControversyIndexService:
