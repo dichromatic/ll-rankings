@@ -52,7 +52,7 @@ export default function UsersPage() {
 
   return (
     <div className="max-w-4xl mx-auto animate-in fade-in duration-500">
-      <div className="flex md:flex-row items-start justify-between gap-6 mb-8 border-b border-border pb-6">
+      <div className="flex flex-row items-start justify-between gap-6 mb-8 border-b border-zinc-900 pb-6">
         <h2 className="text-4xl font-black uppercase tracking-tighter">
           Individual <span className="text-zinc-600">Rankings</span>
         </h2>

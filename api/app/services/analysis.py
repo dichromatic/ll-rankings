@@ -352,7 +352,7 @@ class AnalysisService:
                     "rank": song_rank,
                     "song_id": song_id,
                     "song_name": song_name,
-                    "delta": (song_rank - avg) / total_songs,
+                    "delta": (avg - song_rank) / total_songs,
                     "avg": round(avg, 2),
                 })
                 
