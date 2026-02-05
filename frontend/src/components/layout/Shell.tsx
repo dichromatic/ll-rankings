@@ -37,6 +37,7 @@ export const Shell = ({ children }: { children: React.ReactNode }) => {
     { name: 'Analysis', href: '/analysis' },
     { name: 'Divergence', href: '/divergence' },
     { name: 'Spice', href: '/spice' },
+    { name: 'Users', href: '/users' }
   ];
 
   return (
