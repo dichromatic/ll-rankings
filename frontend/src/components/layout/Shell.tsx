@@ -69,6 +69,7 @@ export const Shell = ({ children }: { children: React.ReactNode }) => {
                         <option value="us">u's</option>
                         <option value="nijigasaki">Nijigasaki</option>
                         <option value="hasunosora">Hasunosora</option>
+                        <option value="ikizuraibu">Ikizuraibu!</option>
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" />
                     </div>

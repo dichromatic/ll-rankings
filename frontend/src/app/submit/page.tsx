@@ -69,6 +69,7 @@ export default function SubmitPage() {
               <option value="us">u's</option>
               <option value="nijigasaki">Nijigasaki</option>
               <option value="hasunosora">Hasunosora</option>
+              <option value="ikizuraibu">Ikizuraibu!</option>
             </select>
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
           </div>

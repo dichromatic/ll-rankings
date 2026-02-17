@@ -18,11 +18,12 @@ const config: Config = {
         text: "#adbac7",
         
         accent: {
-          liella: "#f852ad",
+          liella: "#da57da",
           aqours: "#00baff",
-          us: "#ee0000",
-          nijigasaki: "#f7c10d",
-          hasunosora: "#ff9000",
+          us: "#ec007f",
+          nijigasaki: "#f9d653",
+          hasunosora: "#c32210",
+          ikizuraibu: "#f26c00"
         },
       },
       fontFamily: {

@@ -1,5 +1,5 @@
 // src/hooks/useFranchiseTheme.ts
-export type Franchise = 'liella' | 'aqours' | 'us' | 'nijigasaki' | 'hasunosora';
+export type Franchise = 'liella' | 'aqours' | 'us' | 'nijigasaki' | 'hasunosora' | 'ikizuraibu';
 
 const themes = {
   liella: {
@@ -46,6 +46,15 @@ const themes = {
     focus: 'focus:border-accent-hasunosora',
     hover: 'hover:bg-accent-hasunosora',
     selection: 'selection:bg-accent-hasunosora/30'
+  },
+  ikizuraibu: {
+    border: 'border-accent-ikizuraibu',
+    text: 'text-accent-ikizuraibu',
+    bg: 'bg-accent-ikizuraibu',
+    rgb: '242, 108, 0',
+    focus: 'focus:border-accent-ikizuraibu',
+    hover: 'hover:bg-accent-ikizuraibu',
+    selection: 'selection:bg-accent-ikizuraibu/30'
   },
 };
 
