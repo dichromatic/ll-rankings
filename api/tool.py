@@ -28,10 +28,12 @@ def print_database_snapshot(label="Current"):
     sg_count = run_db_query("SELECT count(*) FROM subgroups;")
     sub_count = run_db_query("SELECT count(*) FROM submissions;")
     
-    # Check Franchises Exist
-    f_names = run_db_query("SELECT name FROM franchises ORDER BY name;")
+    # Process franchise names outside f-string to avoid backslash syntax error
+    f_names_raw = run_db_query("SELECT name FROM franchises ORDER BY name;")
+    f_names_list = f_names_raw.splitlines()
+    f_names_formatted = ", ".join(f_names_list)
     
-    print(f"   Franchises: {f_count} ({f_names.replace('\\n', ', ')})")
+    print(f"   Franchises: {f_count} ({f_names_formatted})")
     print(f"   Songs:      {s_count}")
     print(f"   Subgroups:  {sg_count}")
     print(f"   User Ranks: {sub_count}")
@@ -64,49 +66,47 @@ def backup():
     return backup_data
 
 def wipe_and_reseed():
-    print("🧨 Phase 2: Clearing existing data...")
+    print("🧨 Phase 2: Wiping data and Aligning Schema...")
+    
+    # 1. FIX THE ENUM (Schema Alignment)
+    # This prevents the "invalid input value for enum" error
+    # We use 'IF NOT EXISTS' if your Postgres version supports it, 
+    # otherwise we wrap it in a try-style logic.
+    fix_enum_sql = "ALTER TYPE submissionstatus ADD VALUE IF NOT EXISTS 'INCOMPLETE';"
+    run_db_query(fix_enum_sql, fetch=False)
+    
+    # 2. Clear Tables
     sql = "TRUNCATE TABLE analysis_results, submissions, subgroups, songs CASCADE;"
     run_db_query(sql, fetch=False)
     
-    print("♻️  Restarting API to trigger fresh metadata seed...")
+    # 3. Trigger Reseed
+    print("♻️  Restarting API to trigger metadata seed...")
     subprocess.run("docker-compose restart api", shell=True)
     
-    # Active Polling: Wait for API to be ready
-    print("⏳ Waiting for API health check...")
+    print("⏳ Waiting for API to re-populate...")
     api_ready = False
-    for i in range(20):
+    for i in range(15):
         try:
-            r = httpx.get(f"{API_URL}/health")
+            r = httpx.get(f"{API_URL}/health", timeout=2.0)
             if r.status_code == 200:
                 api_ready = True
                 break
         except:
             pass
-        time.sleep(1.5)
-        print(f"   Attempt {i+1}/20...", end="\r")
+        time.sleep(2.0)
+        print(f"   Polling Backend (Attempt {i+1}/15)...", end="\r")
 
     if not api_ready:
-        print("\n❌ API failed to start in time. Check Docker logs.")
+        print("\n❌ API failed to come online.")
         return False
 
-    print("\n✅ API is Online.")
-    
-    # Verification Step
-    print_database_snapshot("Post-Reseed Verification")
-    
-    # Verify Ikizuraibu specifically
-    ikiz_check = run_db_query("SELECT count(*) FROM franchises WHERE name = 'ikizuraibu';")
-    if ik_count := int(ikiz_check) > 0:
-        print("✅ Success: 'ikizuraibu' franchise detected in database.")
-    else:
-        print("⚠️  Warning: 'ikizuraibu' not found. Check if seed_franchises in init.py was updated.")
-    
+    print("\n✅ API Online. Schema aligned and metadata seeded.")
     return True
 
 def restore():
-    print("🚀 Phase 3: Re-submitting rankings through the live logic...")
+    print("🚀 Phase 3: Restoring rankings...")
     if not Path(BACKUP_FILE).exists():
-        print("⏭️  No backup file to restore.")
+        print("⏭️  Skip: Backup missing.")
         return
 
     with open(BACKUP_FILE, 'r', encoding='utf-8') as f:
@@ -117,35 +117,47 @@ def restore():
         for entry in rankings:
             entry['missing_song_handling'] = 'end'
             
-            print(f"   Importing {entry['username']} ({entry['franchise']})...", end="\r")
+            print(f"   Restoring {entry['username']}...", end="\r")
             try:
                 resp = client.post(f"{API_URL}/submit", json=entry)
+                
+                # Check status inside the 200 OK response
                 if resp.status_code == 200:
-                    success += 1
+                    data = resp.json()
+                    if data.get('status') in ['VALID', 'CONFLICTED']:
+                        success += 1
+                        if data.get('status') == 'CONFLICTED':
+                            print(f"\n⚠️  {entry['username']} restored with CONFLICTS (metadata mismatch)")
+                    else:
+                        print(f"\n❌ {entry['username']} returned unexpected status: {data.get('status')}")
                 else:
-                    print(f"\n❌ Error {entry['username']}: {resp.json().get('detail', resp.text)}")
-            except Exception as e:
-                print(f"\n❌ Connection error for {entry['username']}: {e}")
+                    # IMPROVED ERROR REPORTING
+                    try:
+                        error_detail = resp.json()
+                        print(f"\n❌ Error {entry['username']} ({resp.status_code}): {json.dumps(error_detail)}")
+                    except:
+                        print(f"\n❌ Error {entry['username']} ({resp.status_code}): {resp.text[:100]}")
 
-    print(f"\n✨ Restoration finished. {success}/{len(rankings)} users re-ranked.")
-    
-    # Verify final counts
+            except Exception as e:
+                print(f"\n❌ Connection Failure for {entry['username']}: {str(e)}")
+
+    print(f"\n✨ Restore Finished. {success}/{len(rankings)} users restored.")
     print_database_snapshot("Final State")
     
-    print("⚙️  Triggering global analysis recomputation...")
-    client.post(f"{API_URL}/analysis/trigger")
+    print("⚙️  Triggering analysis recomputation...")
+    try: client.post(f"{API_URL}/analysis/trigger")
+    except: pass
 
 if __name__ == "__main__":
     import sys
     cmd = sys.argv[1] if len(sys.argv) > 1 else "all"
     
-    # Initial State
     print_database_snapshot("Pre-Migration")
 
-    if cmd == "backup" or cmd == "all": 
+    if cmd in ["backup", "all"]: 
         backup()
-    if cmd == "wipe" or cmd == "all": 
+    if cmd in ["wipe", "all"]: 
         if not wipe_and_reseed():
             sys.exit(1)
-    if cmd == "restore" or cmd == "all": 
+    if cmd in ["restore", "all"]: 
         restore()

@@ -873,6 +873,7 @@ songs = [
 [liella.all_songs]
 name = "All Songs"
 is_custom = false
+is_subunit = false
 songs = [
     "始まりは君の空",
     "Dancing Heart La-Pa-Pa-Pa!",

@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
             DatabaseSeeder.seed_franchises(db)
             
             # 2. Define the active pool to seed/sync
-            franchises = ["liella", "aqours", "u's", "nijigasaki", "hasunosora"]
+            franchises = ["liella", "aqours", "u's", "nijigasaki", "hasunosora", "ikizuraibu"]
             
             for franchise_name in franchises:
                 logger.info(f"Processing startup sync for: {franchise_name}")
