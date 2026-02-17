@@ -10,7 +10,8 @@ FRANCHISE_MAP = {
     2: "aqours",
     3: "nijigasaki",
     4: "liella",
-    6: "hasunosora"
+    6: "hasunosora",
+    8: "ikizuraibu"  # ADDED: New group "いきづらい部！"
 }
 
 # Canonical Subunit IDs from artists-info.json
@@ -24,11 +25,14 @@ SUBUNIT_CONFIG = {
         "DOLLCHESTRA": "135", 
         "Mira-Cra Park!": "136",
         "Edel Note": "201"
+    },
+    "ikizuraibu": {
+        "いきづらい部！": "213" # Main group identity
     }
 }
 
 def wrangle():
-    print("🪄  Starting data wrangle with custom flag support...")
+    print(f"🪄  Wrangling {len(FRANCHISE_MAP)} franchises including Ikizuraibu...")
     
     # Load Source Files
     with open(DATA_DIR / "song-info.json", 'r', encoding='utf-8') as f:
@@ -47,11 +51,11 @@ def wrangle():
     # Initialize Subunit containers
     for f_name, units in SUBUNIT_CONFIG.items():
         for unit_name in units.keys():
-            # Standardizing keys for TOML
+            # Standardizing keys for TOML (Handles the full-width ！ in いきづらい部！)
             key = unit_name.lower().replace(" ", "_").replace("！", "").replace("!", "").replace("・", "_")
             subgroups[f_name][key] = {
                 "name": unit_name,
-                "is_custom": False, # Canonical data is never custom
+                "is_custom": False,
                 "is_subunit": True,
                 "songs": []
             }
@@ -71,7 +75,7 @@ def wrangle():
             
         processed_songs[f_name].append({"name": song_name, "youtube_url": yt_url})
         
-        # 2. All Songs
+        # 2. All Songs Subgroup
         subgroups[f_name]["all_songs"]["songs"].append(song_name)
         
         # Determine unique performers
@@ -82,17 +86,17 @@ def wrangle():
                 for cid in artist_map[aid].get('characters', []):
                     if cid: unique_char_ids.add(cid)
         
-        # 3. Solos
+        # 3. Solos (Calculated dynamically)
         if len(unique_char_ids) == 1:
             subgroups[f_name]["solos"]["songs"].append(song_name)
             
-        # 4. Subunits
+        # 4. Canonical Subunits
         for unit_name, unit_id in SUBUNIT_CONFIG.get(f_name, {}).items():
             if unit_id in artist_refs:
                 key = unit_name.lower().replace(" ", "_").replace("！", "").replace("!", "").replace("・", "_")
                 subgroups[f_name][key]["songs"].append(song_name)
 
-    # OUTPUT: Franchise song jsons
+    # OUTPUT: Generate {franchise}_songs.json
     for f_name, song_list in processed_songs.items():
         f_name_clean = f_name.replace("'", "")
         with open(OUTPUT_DIR / f"{f_name_clean}_songs.json", 'w', encoding='utf-8') as f:
@@ -107,7 +111,7 @@ def wrangle():
                 
                 f.write(f"[{f_name}.{key}]\n")
                 f.write(f"name = \"{config['name']}\"\n")
-                f.write("is_custom = false\n") # ADDED: Explicitly false
+                f.write("is_custom = false\n")
                 if config.get("is_subunit"):
                     f.write("is_subunit = true\n")
                 f.write("songs = [\n")
@@ -116,7 +120,7 @@ def wrangle():
                     f.write(f"    \"{safe_song}\",\n")
                 f.write("]\n\n")
     
-    print("✨ Wrangle complete. is_custom=false flags added.")
+    print("✨  Wrangle complete. Ikizuraibu data integrated.")
 
 if __name__ == "__main__":
     wrangle()

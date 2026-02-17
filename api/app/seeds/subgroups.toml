@@ -1362,7 +1362,6 @@ songs = [
 ]
 
 
-
 [liella.group_songs]
 name = "Group Songs"
 is_custom = false
@@ -1551,3 +1550,77 @@ songs = [
 #     "絶対的LOVER",
 #     "Aspire"
 # ]
+
+# --- ikizuraibu ---
+
+[ikizuraibu.all_songs]
+name = "All Songs"
+is_custom = false
+songs = [
+    "What is my LIFE?",
+    "ヒミツミチ",
+    "浅草Guilty Girlの歌",
+    "オドルポルカ",
+    "Public Style",
+    "ひっさつマイマイモード",
+    "いつか碧",
+    "HIBANA―火花―",
+    "ジェットスターター",
+    "First Ride",
+    "HomeRun Queen!!",
+    "恋のワンタイムパスワード",
+    "マジカル♡レシピ・シルブプレ！",
+    "センチメートル・ランデヴー",
+    "Pray for love",
+    "キミは夜のポラリス",
+    "二人はいつでもHappy End",
+    "クラリトブライト",
+    "Little Green委員会",
+    "イキタクナイevery day",
+    "LOVE♡YOU♡Save the EARTH!!",
+    "Trick or Toxic",
+    "REGAIN AGAIN LLLLOVE",
+    "Dou-Da? DOING!",
+    "Daitan Party Time",
+    "凸凹Quartet",
+    "Silent Stella",
+    "シンメトリー",
+]
+
+[ikizuraibu.solos]
+name = "Solos"
+is_custom = false
+songs = [
+    "浅草Guilty Girlの歌",
+    "オドルポルカ",
+    "Public Style",
+    "ひっさつマイマイモード",
+    "いつか碧",
+    "HIBANA―火花―",
+    "ジェットスターター",
+    "First Ride",
+    "HomeRun Queen!!",
+    "恋のワンタイムパスワード",
+    "マジカル♡レシピ・シルブプレ！",
+    "センチメートル・ランデヴー",
+    "Pray for love",
+    "キミは夜のポラリス",
+    "二人はいつでもHappy End",
+    "クラリトブライト",
+    "Little Green委員会",
+    "イキタクナイevery day",
+    "LOVE♡YOU♡Save the EARTH!!",
+    "Trick or Toxic",
+]
+
+[ikizuraibu.group_songs]
+name = "いきづらい部！"
+is_custom = false
+is_subunit = false
+songs = [
+    "What is my LIFE?",
+    "ヒミツミチ",
+    "REGAIN AGAIN LLLLOVE",
+    "Dou-Da? DOING!",
+]
+
