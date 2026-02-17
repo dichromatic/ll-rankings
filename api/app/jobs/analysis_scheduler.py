@@ -76,7 +76,8 @@ def recompute_all_analyses():
                         "DIVERGENCE": AnalysisService.compute_divergence_matrix,
                         "CONTROVERSY": AnalysisService.compute_controversy,
                         "TAKES": AnalysisService.compute_hot_takes,
-                        "COMMUNITY_RANK": AnalysisService.compute_community_rankings
+                        "COMMUNITY_RANK": AnalysisService.compute_community_rankings,
+                        "INDIVIDUAL": AnalysisService.compute_individual_rankings
                     }
 
                     for a_type, calc_func in subgroup_tasks.items():

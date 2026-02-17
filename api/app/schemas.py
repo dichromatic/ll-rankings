@@ -138,3 +138,17 @@ class HealthResponse(BaseModel):
 
 class SubunitResponse(BaseModel):
     results: dict[str,list[str]]
+
+class UserResponse(BaseModel):
+    username: str
+
+class IndividualRankResult(BaseModel):
+    rank: float
+    song_id: UUID
+    song_name: str
+    delta: float
+    avg: float
+
+class IndividualRankResponse(BaseModel):
+    metadata: AnalysisMetadata
+    rankings: list[IndividualRankResult]

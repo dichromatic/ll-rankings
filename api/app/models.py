@@ -105,7 +105,7 @@ class AnalysisResult(Base):
     franchise_id = Column(UUID(as_uuid=True), ForeignKey("franchises.id"))
     subgroup_id = Column(UUID(as_uuid=True), ForeignKey("subgroups.id"))
 
-    analysis_type = Column(String)  # "DIVERGENCE", "TAKES", "CONTROVERSY", "SPICE"
+    analysis_type = Column(String)  # "DIVERGENCE", "TAKES", "CONTROVERSY", "SPICE", "INDIVIDUAL"
     result_data = Column(JSON)
 
     computed_at = Column(DateTime(timezone=True), server_default=func.now())
