@@ -20,10 +20,20 @@ export interface HotTake {
   take_type: "HOT_TAKE" | "GLAZE";
 }
 
+export type DivergenceMatrix = Record<string, Record<string, number>>;
+
 export interface SpiceResult {
   username: string;
   global_spice: number;
   group_breakdown: Record<string, number>;
+}
+
+export interface IndividualRank {
+  rank: number;
+  song_id: number;
+  song_name: string;
+  delta: number;
+  avg: number;
 }
 
 export const useControversy = (franchise: string, subgroup: string) => {
@@ -59,8 +69,6 @@ export const useSpiceMeter = (franchise: string) => {
   });
 };
 
-export type DivergenceMatrix = Record<string, Record<string, number>>;
-
 export const useDivergence = (franchise: string, subgroup: string) => {
   return useQuery({
     queryKey: ["divergence", franchise, subgroup],
@@ -74,3 +82,16 @@ export const useDivergence = (franchise: string, subgroup: string) => {
     refetchOnWindowFocus: false,
   });
 };
+
+export const useIndividualRank = (franchise: string, subgroup: string, username: string) => {
+  return useQuery({
+    queryKey: ["individual", franchise, subgroup, username],
+    queryFn: async () => {
+      const { data } = await api.get(`/analysis/users`, {
+        params: { franchise, subgroup, username }
+      });
+      return data.rankings as IndividualRank[];
+    },
+    enabled: !!franchise && !!subgroup && !!username,
+  })
+}

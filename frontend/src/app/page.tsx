@@ -15,7 +15,6 @@ export default function ConsensusPage() {
   const subgroupName = useContext(SubgroupContext);
   const theme = useFranchiseTheme(franchise);
 
-  const { data: subgroups } = useSubgroups(franchise);
   const { data: rankings, isLoading } = useRankings(franchise, subgroupName);
 
   // Prevent hydration error by rendering a placeholder until mounted

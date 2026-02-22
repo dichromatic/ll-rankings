@@ -1,5 +1,6 @@
 # app/api/v1/analysis.py
 
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -7,11 +8,13 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.jobs.analysis_scheduler import recompute_all_analyses, scheduler
-from app.models import AnalysisResult, Franchise, Subgroup, Submission, Song
+
+logger = logging.getLogger(__name__)
+from app.models import AnalysisResult, Franchise, Subgroup, Submission, Song, SubmissionStatus
 from app.schemas import (AnalysisMetadata, CommunityRankResponse,
                          ControversyResponse, DivergenceMatrixResponse,
-                         HotTakesResponse, SpiceMeterResponse, TriggerResponse,
-                         SubgroupResponse)
+                         HotTakesResponse, SpiceMeterResponse, IndividualRankResponse,
+                         TriggerResponse, SubgroupResponse, UserResponse)
 from app.services.analysis import AnalysisService
 
 router = APIRouter(prefix="/api/v1", tags=["analysis"])
@@ -247,6 +250,87 @@ async def get_spice_meter(franchise: str, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/analysis/users", response_model=IndividualRankResponse)
+async def get_individual_rankings(franchise: str, subgroup: str, username: str, db: Session = Depends(get_db)):
+    franchise_obj = db.query(Franchise).filter_by(name=franchise).first()
+    if not franchise_obj:
+        raise HTTPException(status_code=404, detail="Franchise not found")
+    
+    subgroup_obj = (
+        db.query(Subgroup)
+        .filter(
+            Subgroup.name == subgroup,
+            Subgroup.franchise_id == franchise_obj.id,
+        )
+        .first()
+    )
+    if not subgroup_obj:
+        raise HTTPException(status_code=404, detail="Subgroup not found")
+    
+    result = (
+        db.query(AnalysisResult)
+        .filter(
+            AnalysisResult.franchise_id == franchise_obj.id,
+            AnalysisResult.subgroup_id == subgroup_obj.id,
+            AnalysisResult.analysis_type == "INDIVIDUAL",
+        )
+        .first()
+    )
+
+    # If result exists but user is missing, it might be stale. Recompute.
+    if result and username not in result.result_data:
+        logger.info(f"User '{username}' not in cached analysis. triggering recomputation.")
+        data = AnalysisService.compute_individual_rankings(str(franchise_obj.id), str(subgroup_obj.id), db)
+        
+        # Update the cache
+        result.result_data = data
+        result.computed_at = datetime.utcnow()
+        # Update based_on_submissions count
+        sub_count = (
+            db.query(Submission).filter(
+                Submission.franchise_id == franchise_obj.id,
+                Submission.submission_status == SubmissionStatus.VALID
+            ).count()
+        )
+        result.based_on_submissions = sub_count
+        db.commit()
+        
+        if username not in data:
+            logger.warning(f"Individual Rankings: User '{username}' still not found after recomputation.")
+            raise HTTPException(status_code=404, detail="User rankings not found")
+            
+        return IndividualRankResponse(
+            metadata=AnalysisMetadata(
+                computed_at=result.computed_at,
+                based_on_submissions=result.based_on_submissions,
+            ),
+            rankings=data[username],
+        )
+
+    if not result:
+        data = AnalysisService.compute_individual_rankings(str(franchise_obj.id), str(subgroup_obj.id), db)
+        sub_count = (
+            db.query(Submission).filter_by(franchise_id=franchise_obj.id).count()
+        )
+        
+        if username not in data:
+            raise HTTPException(status_code=404, detail="User rankings not found")
+
+        return IndividualRankResponse(
+            metadata=AnalysisMetadata(
+                computed_at=datetime.utcnow(), based_on_submissions=sub_count
+            ),
+            rankings=data[username],
+        )
+
+        return IndividualRankResponse(
+            metadata=AnalysisMetadata(
+                computed_at=result.computed_at,
+                based_on_submissions=result.based_on_submissions,
+            ),
+            rankings=result.result_data[username],
+        )
+
 @router.post("/analysis/trigger", response_model=TriggerResponse)
 async def trigger_manual_analysis(background_tasks: BackgroundTasks):
     """
@@ -308,3 +392,24 @@ async def get_franchise_subgroups(franchise: str, db: Session = Depends(get_db))
         ))
 
     return results
+
+@router.get("/users", response_model=list[UserResponse])
+async def get_users(franchise: str, db: Session = Depends(get_db)):
+    """Get all users that submitted a ranking for a franchise"""
+
+    franchise_obj = db.query(Franchise).filter_by(name=franchise).first()
+    if not franchise_obj:
+        raise HTTPException(status_code=404, detail="Franchise not found")
+
+    query = db.query(Submission).filter(
+            Submission.franchise_id == franchise_obj.id,
+            Submission.submission_status == SubmissionStatus.VALID
+        )
+    results = []
+    for submission in query:
+        results.append(UserResponse(
+            username=submission.username
+        ))
+
+    return results
+
