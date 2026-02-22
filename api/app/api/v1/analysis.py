@@ -323,13 +323,13 @@ async def get_individual_rankings(franchise: str, subgroup: str, username: str, 
             rankings=data[username],
         )
 
-        return IndividualRankResponse(
-            metadata=AnalysisMetadata(
-                computed_at=result.computed_at,
-                based_on_submissions=result.based_on_submissions,
-            ),
-            rankings=result.result_data[username],
-        )
+    return IndividualRankResponse(
+        metadata=AnalysisMetadata(
+            computed_at=result.computed_at,
+            based_on_submissions=result.based_on_submissions,
+        ),
+        rankings=result.result_data[username],
+    )
 
 @router.post("/analysis/trigger", response_model=TriggerResponse)
 async def trigger_manual_analysis(background_tasks: BackgroundTasks):
