@@ -1,7 +1,10 @@
 # app/services/analysis.py
 
+import logging
 import statistics
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 from typing import Dict, List
 from uuid import UUID
 import math
@@ -345,6 +348,9 @@ class AnalysisService:
             individual_ranks = []
             total_songs = len(song_stats)
             for song_id, ranks in song_stats.items():
+                if song_id not in rel_map:
+                    continue
+                    
                 avg = statistics.mean(ranks)
                 song_rank = rel_map[song_id]
                 song_name = song_name_map.get(song_id, "Unknown")

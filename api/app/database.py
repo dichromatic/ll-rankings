@@ -66,7 +66,7 @@ def get_db() -> Session:
         db.rollback()
         raise DatabaseException(f"Database error: {str(e)}")
     except Exception as e:
-        logger.error(f"Unexpected error in database session: {str(e)}")
+        logger.error(f"Unexpected error in database session: {repr(e)}")
         db.rollback()
         raise
     finally:
